@@ -1,0 +1,47 @@
+.layout {
+  height: 100vh;
+
+  .header {
+    display: flex;
+    align-items: center;
+    padding: 0 var(--space-20);
+    background: #fff;
+
+    .logo {
+      font-size: 18px;
+      font-weight: bold;
+      color: var(--text-1);
+      margin-right: var(--space-20);
+      white-space: nowrap;
+    }
+
+    .menu {
+      flex: 1;
+      border-bottom: none;
+    }
+
+    .user {
+      display: flex;
+      align-items: center;
+      gap: var(--space-8);
+      cursor: pointer;
+      padding: var(--space-8);
+      border-radius: 4px;
+      transition: background 0.3s;
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .username {
+        color: #fff;
+        font-size: 14px;
+      }
+    }
+  }
+
+  .content {
+    padding: var(--space-20);
+    background: var(--background);
+  }
+}
