@@ -1,0 +1,169 @@
+.dashboard {
+  display: flex;
+  padding: var(--space-20);
+  height: 100%;
+
+  .title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: var(--space-10);
+
+    .name {
+      color: var(--text-1);
+      font-size: 18px;
+      font-weight: 500;
+    }
+
+    .tip {
+      color: var(--text-2);
+      font-size: 12px;
+    }
+  }
+
+  .content {
+    flex: 1;
+    min-height: 0;
+    overflow-y: scroll;
+
+    .overview {
+      padding: var(--space-20);
+      background: #fff;
+      border-radius: var(--space-8);
+
+      .item {
+        margin: var(--space-20) 0 var(--space-10);
+
+        .title {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+
+          .name {
+            color: var(--text-2);
+            font-size: 14px;
+            font-weight: 700;
+          }
+
+          .tip {
+            font-size: 12px;
+            color: var(--text-3);
+          }
+        }
+
+        .detail {
+          display: flex;
+          align-items: center;
+
+          .cost {
+            min-width: 250px;
+            padding: var(--space-12) var(--space-20);
+            border-radius: var(--space-8);
+            width: 20%;
+            flex: none;
+            background: url('../../assets/card-bg.jpg') no-repeat;
+            background-position: 50%;
+            background-size: cover;
+            color: #fff;
+          }
+
+          .count {
+            display: flex;
+            align-items: flex-end;
+            line-height: 1;
+            margin-bottom: var(--space-8);
+
+            .amount {
+              font-family: myFamily;
+              font-size: 30px;
+              margin-right: var(--space-8);
+            }
+          }
+
+          .currency,
+          .tip {
+            font-size: 12px;
+            line-height: 16px;
+          }
+
+          .info {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: var(--blue-bg);
+            padding: var(--space-12) var(--space-20);
+            border-radius: var(--space-8);
+            margin-left: var(--space-10);
+
+            .amount {
+              color: var(--text-1);
+            }
+
+            .currency {
+              color: var(--text-3);
+            }
+
+            .tip {
+              color: var(--text-2);
+            }
+
+            .chartItem {
+              display: flex;
+              align-items: center;
+
+              .chart {
+                width: 60px;
+                height: 60px;
+                background: url('../../assets/bi.svg') no-repeat;
+                background-position: 50%;
+                background-size: cover;
+                margin-right: var(--space-8);
+              }
+
+              .payed {
+                margin-bottom: var(--space-10);
+              }
+
+              .unpay,
+              .payed {
+                display: flex;
+                align-items: center;
+              }
+
+              .payed::before,
+              .unpay::before {
+                content: ' ';
+                display: block;
+                width: 8px;
+                height: 8px;
+                border-radius: 50%;
+                margin-right: var(--space-4);
+              }
+
+              .payed::before {
+                background-color: var(--green);
+              }
+
+              .unpay::before  {
+                background-color: var(--blue);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .side {
+    flex: none;
+    width: 350px;
+    margin-left: 20px;
+
+    .message {
+      background-color: #fff;
+      border-radius: var(--space-8);
+      padding: 20px;
+    }
+  }
+}

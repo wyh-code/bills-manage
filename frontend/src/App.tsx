@@ -1,8 +1,12 @@
 import { RouterProvider } from 'react-router-dom';
 import { ConfigProvider } from 'antd';
+import dayjs from 'dayjs';
+import 'dayjs/locale/zh-cn';
 import zhCN from 'antd/locale/zh_CN';
 import { router } from './router';
-import './global.css';
+import './global.less';
+
+dayjs.locale('zh-cn');
 
 export default function App() {
 
@@ -13,7 +17,8 @@ export default function App() {
         token: {
           // Seed Token，影响范围大
           colorPrimary: '#FF6619',
-          borderRadius: 8,
+          borderRadius: 4,
+          colorTextBase: '#111720'
         },
       }}
     >

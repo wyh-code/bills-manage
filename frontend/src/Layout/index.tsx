@@ -19,6 +19,21 @@ export default function Layout() {
   ];
 
   const userMenuItems = [
+    // {
+    //   key: 'logout',
+    //   icon: <Avatar
+    //     size={32}
+    //     src={user?.headimgurl}
+    //     icon={<UserOutlined />}
+    //   />,
+    //   label: (
+    //     <div>
+    //       <span className={styles.username}>
+    //         {user?.nickname || user?.username || `用户${user?.id}`}
+    //       </span>
+    //     </div>
+    //   ),
+    // },
     {
       key: 'logout',
       icon: <LogoutOutlined />,
@@ -33,7 +48,9 @@ export default function Layout() {
   return (
     <AntLayout className={styles.layout}>
       <Header className={styles.header}>
-        <div className={styles.logo}>Amazon账单系统</div>
+        <div className={styles.logo}>
+          Amazon账单系统
+        </div>
         <Menu
           mode="horizontal"
           selectedKeys={[location.pathname]}
@@ -48,9 +65,6 @@ export default function Layout() {
               src={user?.headimgurl}
               icon={<UserOutlined />}
             />
-            <span className={styles.username}>
-              {user?.nickname || user?.username || `用户${user?.id}`}
-            </span>
           </div>
         </Dropdown>
       </Header>

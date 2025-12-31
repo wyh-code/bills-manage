@@ -1,0 +1,57 @@
+.upload {
+  padding: var(--space-20);
+  height: calc(100vh - 64px);
+  display: flex;
+
+  .formConteiner {
+    width: 40vw;
+    flex: none;
+    display: flex;
+    align-items: center;
+    background: #fff;
+    padding: var(--space-20);
+    border-radius: var(--space-8);
+
+    .form {
+      width: 20vw;
+      flex: none;
+      margin-right: var(--space-20);
+    }
+
+    .uploadInner {
+      border-radius: var(--space-8);
+      border: 1px dashed var(--border-color);
+      padding: var(--space-10) var(--space-20);
+      display: flex;
+      align-items: center;
+      color: var(--text-3);
+      font-size: 12px;
+      text-align: center;
+      background: var(--background);
+      cursor: pointer;
+    }
+  }
+
+  .dataView {
+    background: #fff;
+    border-radius: var(--space-8);
+    padding: var(--space-20);
+    margin-top: var(--space-20);
+
+    .title {
+      color: var(--text-1);
+      font-size: 18px;
+      font-weight: 500;
+    }
+  }
+
+  .preview {
+    flex: 1;
+    margin-left: var(--space-20);
+    border-radius: var(--space-8);
+    padding: var(--space-20);
+    background: #fff;
+    overflow: scroll;
+    min-height: 0;
+  }
+}
