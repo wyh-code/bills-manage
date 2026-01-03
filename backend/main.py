@@ -8,7 +8,7 @@ from app.utils.file_utils import writeLog
 from app.utils.trace_util import generate_trace_id
 
 # 导入路由
-from app.routes import auth_bp
+from app.routes import auth_bp, workspace_bp
 
 # 加载环境变量
 load_dotenv()
@@ -42,6 +42,7 @@ def after_request(response):
 
 # 注册路由
 app.register_blueprint(auth_bp)
+app.register_blueprint(workspace_bp)
 
 # 健康检查接口
 @app.route('/api/health', methods=['GET'])

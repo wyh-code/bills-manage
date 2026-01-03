@@ -46,6 +46,7 @@
           color: var(--text-2);
           font-weight: 500;
           cursor: default;
+          width: 70%;
 
           &:hover {
             color: var(--primary);
@@ -55,25 +56,29 @@
         .status {
           padding: var(--space-4) var(--space-8);
           border-radius: var(--space-4);
+          font-size: 12px;
+          text-align: center;
+        }
+
+        .status-grey {
+          background-color: var(--disabled-bg);
+          color: var(--text-disabled);
         }
 
         .status-green {
           background-color: var(--green-bg);
           color: var(--green);
-          font-size: 12px;
-          text-align: center;
         }
       }
 
       .detail {
         border-bottom: 1px dashed var(--border-color);
-        padding-bottom: var(--space-10);
+        padding: var(--space-10 0);
 
         .item {
           font-size: 14px;
           margin: var(--space-10) 0;
           display: flex;
-          align-items: center;
 
           .label {
             margin-right: var(--space-8);
@@ -81,7 +86,22 @@
           }
 
           .value {
+            flex: 1;
             color: var(--text-2);
+          }
+        }
+      }
+
+      .greyInfo {
+        .title {
+          .name {
+            color: var(--text-4);
+          }
+        }
+
+        .detail {
+          .label, .value {
+            color: var(--text-4);
           }
         }
       }
@@ -89,15 +109,22 @@
       .footer {
         display: flex;
         align-items: center;
-        justify-content: flex-end;
-        padding-top: var(--space-10);
+        justify-content: space-between;
+        padding-top: var(--space-12);
 
-        .remove {
-          margin-left: var(--space-8);
-          cursor: pointer;
-          color: var(--text-2);
+
+        .right {
+          display: flex;
+          align-items: center;
         }
+      }
 
+      .disabled {
+        pointer-events: none;
+
+        span {
+          color: var(--text-4);
+        }
       }
     }
 

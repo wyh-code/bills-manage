@@ -29,7 +29,9 @@ def config(datasource: str) -> dict:
         data = response.json()
         
         if data.get('code') != 200:
-            raise Exception(f'获取扫码配置失败: {data.get("message", "未知错误")}')
+            message = f'获取扫码配置失败: {data.get("message", "未知错误")}'
+            writeLog(message)
+            raise Exception(message)
         
         # 返回配置（包含前端state）
         result = data.get('data', {})
@@ -38,7 +40,9 @@ def config(datasource: str) -> dict:
         return result
         
     except requests.RequestException as e:
-        raise Exception(f'请求微信认证服务失败: {str(e)}')
+        message = f'请求微信认证服务失败: {str(e)}'
+        writeLog(message)
+        raise Exception(message)
 
 def status(datasource: str, state: str) -> dict:
     """查询扫码状态"""
@@ -59,12 +63,16 @@ def status(datasource: str, state: str) -> dict:
         writeLog(f"查询扫码状态 - response: {response.text}")
 
         if data.get('code') != 200:
-            raise Exception(f'查询扫码状态失败: {data.get("message", "未知错误")}')
+            message = f'查询扫码状态失败: {data.get("message", "未知错误")}'
+            writeLog(message)
+            raise Exception(message)
         
         return data.get('data', {})
         
     except requests.RequestException as e:
-        raise Exception(f'请求微信认证服务失败: {str(e)}')
+        message = f'请求微信认证服务失败: {str(e)}'
+        writeLog(message)
+        raise Exception(message)
 
 def code2info(datasource: str, code: str) -> dict:
     """code换取用户信息和token"""
@@ -75,7 +83,6 @@ def code2info(datasource: str, code: str) -> dict:
     
     try:
         trace_id = get_trace_id()
-        writeLog(f"换取用户信息 - code: {code}...")
         
         response = requests.get(
             f'{AUTH_BASE_URL}/code2info',
@@ -91,12 +98,16 @@ def code2info(datasource: str, code: str) -> dict:
         data = response.json()
         
         if data.get('code') != 200:
-            raise Exception(f'换取用户信息失败: {data.get("message", "未知错误")}')
+            message = f'换取用户信息失败: {data.get("message", "未知错误")}'
+            writeLog(message)
+            raise Exception(message)
         
         user_info = data.get('data', {})
         
         if not user_info.get('openid'):
-            raise Exception('未获取到用户openid')
+            message = '未获取到用户openid'
+            writeLog(message)
+            raise Exception(message)
         
         # 查询或创建用户
         user = db.query(User).filter_by(openid=user_info['openid']).first()
@@ -116,7 +127,6 @@ def code2info(datasource: str, code: str) -> dict:
             # 更新用户信息（昵称和头像可能变化）
             user.nickname = user_info.get('nickname')
             user.headimgurl = user_info.get('headimgurl')
-            user.unionid = user_info.get('unionid')
             db.commit()
         
         # 生成JWT token
@@ -131,6 +141,8 @@ def code2info(datasource: str, code: str) -> dict:
         }
         
     except requests.RequestException as e:
-        raise Exception(f'请求微信认证服务失败: {str(e)}')
+        message = f'请求微信认证服务失败: {str(e)}'
+        writeLog(message)
+        raise Exception(message)
     finally:
         db.close()

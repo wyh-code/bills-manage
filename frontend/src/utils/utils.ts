@@ -2,6 +2,8 @@
  * 文件类型判断工具
  */
 
+import moment from "moment";
+
 // MIME 类型映射
 const FILE_TYPES = {
   excel: [
@@ -77,3 +79,11 @@ export const checkFileTypes = (files: File[]) => {
     isImage: isImage(file),
   }));
 };
+
+export const formateTime = (time: any) => {
+  return moment(time).format('YYYY-MM-DD HH:mm:ss')
+}
+
+export const formateUser = (members: any) => {
+  return members.filter(it => it).map(user => user?.nickname).join(', ')
+}

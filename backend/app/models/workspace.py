@@ -1,3 +1,4 @@
+from nanoid import generate
 from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean
 from datetime import datetime
 from app.database import Base
@@ -6,9 +7,10 @@ class Workspace(Base):
     """账务空间表"""
     __tablename__ = "workspaces"
     
-    id = Column(Integer, primary_key=True, index=True, comment='空间ID')
+    id = Column(String(21), primary_key=True, default=lambda: generate(), comment='空间ID')
     name = Column(String(100), nullable=False, comment='空间名称')
     description = Column(Text, nullable=True, comment='空间描述')
+    status = Column(String(20), nullable=False, default='active', comment='空间状态：active/inactive')
     owner_openid = Column(String(64), nullable=False, index=True, comment='所有者OpenID')
     
     # 软删除
@@ -23,6 +25,7 @@ class Workspace(Base):
             'id': self.id,
             'name': self.name,
             'description': self.description,
+            'status': self.status,
             'owner_openid': self.owner_openid,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None

@@ -1,3 +1,4 @@
+from nanoid import generate
 from sqlalchemy import Column, Integer, String, Text, BigInteger, DateTime, ForeignKey, Index, Boolean
 from datetime import datetime
 from app.database import Base
@@ -6,7 +7,7 @@ class FileUpload(Base):
     """文件上传记录表"""
     __tablename__ = "file_uploads"
     
-    id = Column(Integer, primary_key=True, index=True, comment='记录ID')
+    id = Column(String(21), primary_key=True, default=lambda: generate(), comment='记录ID')
     workspace_id = Column(Integer, ForeignKey('workspaces.id'), nullable=False, index=True, comment='所属空间ID')
     uploaded_by_openid = Column(String(64), nullable=False, index=True, comment='上传者OpenID')
     
@@ -18,7 +19,8 @@ class FileUpload(Base):
     refined_content = Column(Text, nullable=True, comment='DeepSeek精炼完整文本')
     bills_count = Column(Integer, default=0, comment='精炼出的账单数量')
     upload_time = Column(BigInteger, nullable=False, comment='上传时间戳')
-    
+    status = Column(String(20), nullable=False, default='active', comment='文件状态：active/inactive')
+
     # 软删除
     is_deleted = Column(Boolean, default=False, nullable=False, index=True, comment='是否删除')
     deleted_at = Column(DateTime, nullable=True, comment='删除时间')
@@ -40,6 +42,7 @@ class FileUpload(Base):
             'saved_path': self.saved_path,
             'file_size': self.file_size,
             'bills_count': self.bills_count,
+            'status': self.status,
             'upload_time': self.upload_time,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }

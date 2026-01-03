@@ -1,3 +1,4 @@
+from nanoid import generate
 from sqlalchemy import Column, Integer, String, Text, Date, DECIMAL, DateTime, ForeignKey, Index, Boolean
 from datetime import datetime
 from app.database import Base
@@ -6,7 +7,7 @@ class Bill(Base):
     """账单明细表"""
     __tablename__ = "bills"
     
-    id = Column(Integer, primary_key=True, index=True, comment='账单ID')
+    id = Column(String(21), primary_key=True, default=lambda: generate(), comment='账单ID')
     file_upload_id = Column(Integer, ForeignKey('file_uploads.id', ondelete='CASCADE'), nullable=False, index=True, comment='关联文件ID')
     workspace_id = Column(Integer, ForeignKey('workspaces.id'), nullable=False, index=True, comment='所属空间ID')
     
@@ -19,6 +20,7 @@ class Bill(Base):
     card_last4 = Column(String(4), nullable=True, comment='卡号末四位')
     amount_foreign = Column(String(50), nullable=True, comment='交易地金额')
     currency = Column(String(10), nullable=True, comment='记账币种')
+    status = Column(String(20), nullable=False, default='active', comment='账单状态：active/inactive')
     
     # 原始数据
     raw_line = Column(Text, nullable=False, comment='原始精炼字符串单行')
@@ -48,6 +50,7 @@ class Bill(Base):
             'amount_foreign': self.amount_foreign,
             'currency': self.currency,
             'raw_line': self.raw_line,
+            'status': self.status,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
     
