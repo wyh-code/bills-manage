@@ -1,6 +1,6 @@
 
 import { useState } from "react";
-import { Drawer, Table } from "antd";
+import { Drawer } from "antd";
 import { RightOutlined } from '@ant-design/icons';
 import styles from './index.module.less';
 import Empty from "@/component/Empty";
@@ -20,7 +20,7 @@ export default () => {
         open={open}
         onClose={() => setOpen(false)}
       >
-        <Empty />
+        <Empty style={{ margin: '30vh 0' }} />
       </Drawer>
     </div>
   )

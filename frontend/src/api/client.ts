@@ -3,7 +3,7 @@ import authService from '@/auth/authService';
 
 const apiClient = axios.create({
   baseURL: 'http://127.0.0.1:7788/api',
-  timeout: 10000,
+  timeout: 60 * 1000,
   headers: {
     'Content-Type': 'application/json',
   },

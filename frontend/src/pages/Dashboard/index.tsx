@@ -1,9 +1,15 @@
-import { Button } from 'antd';
 import Worksapce from './Worksapce';
 import CostView from './CostView';
 import styles from './index.module.less';
+import { generateDonutChartSVG } from '@/utils/svg';
 
 function Dashboard() {
+
+  const svg = generateDonutChartSVG(
+    [{ color: '#FF6619', scale: 90 }, { color: '#007AFF', scale: 60 }],
+    [26, 15]
+  )
+
   return (
     <div className={styles.dashboard}>
       <div className={styles.content}>
@@ -41,7 +47,7 @@ function Dashboard() {
                   <div className={styles.tip}>未结算金额</div>
                 </div>
                 <div className={styles.chartItem}>
-                  <div className={styles.chart}></div>
+                  <div className={styles.chart} dangerouslySetInnerHTML={{ __html: svg }} />
                   <div className={styles.tip}>
                     <div className={styles.payed}>
                       已结算 30%

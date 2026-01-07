@@ -4,7 +4,7 @@ import styles from './index.module.less';
 import shared from '@/assets/share.svg';
 import disabledShare from '@/assets/disabled-share.svg';
 
-export default ({ disabled }: any) => {
+export default ({ disabled, className }: any) => {
   const [text, setText] = useState('');
   const handleCopy = async () => {
     try {
@@ -16,7 +16,7 @@ export default ({ disabled }: any) => {
   };
 
   return (
-    <div className={styles.shared}>
+    <div className={`${styles.shared} ${className}`}>
       {
         disabled ? (
           <img className="disabled" src={disabledShare} />

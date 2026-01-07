@@ -8,7 +8,7 @@ class FileUpload(Base):
     __tablename__ = "file_uploads"
     
     id = Column(String(21), primary_key=True, default=lambda: generate(), comment='记录ID')
-    workspace_id = Column(Integer, ForeignKey('workspaces.id'), nullable=False, index=True, comment='所属空间ID')
+    workspace_id = Column(String(21), ForeignKey('workspaces.id'), nullable=False, index=True, comment='所属空间ID')
     uploaded_by_openid = Column(String(64), nullable=False, index=True, comment='上传者OpenID')
     
     file_hash = Column(String(64), nullable=False, index=True, comment='文件SHA256哈希')
@@ -19,7 +19,7 @@ class FileUpload(Base):
     refined_content = Column(Text, nullable=True, comment='DeepSeek精炼完整文本')
     bills_count = Column(Integer, default=0, comment='精炼出的账单数量')
     upload_time = Column(BigInteger, nullable=False, comment='上传时间戳')
-    status = Column(String(20), nullable=False, default='active', comment='文件状态：active/inactive')
+    status = Column(String(20), nullable=False, default='active', comment='文件状态：active/inactive/processing/completed/failed')
 
     # 软删除
     is_deleted = Column(Boolean, default=False, nullable=False, index=True, comment='是否删除')

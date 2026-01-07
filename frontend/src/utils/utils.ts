@@ -28,7 +28,7 @@ const FILE_TYPES = {
 
 // 文件扩展名映射
 const FILE_EXTENSIONS = {
-  excel: /\.(xlsx?|xlsm?|xlsb|csv)$/i,
+  excel: /\.(xlsx?|xlsm?|xlsb|ecxml|csv)$/i,
   pdf: /\.pdf$/i,
   image: /\.(jpe?g|png|gif|bmp|webp|svg)$/i,
 };

@@ -6,9 +6,10 @@ from dotenv import load_dotenv
 from datetime import datetime
 from app.utils.file_utils import writeLog
 from app.utils.trace_util import generate_trace_id
+import traceback
 
 # 导入路由
-from app.routes import auth_bp, workspace_bp
+from app.routes import auth_bp, workspace_bp, file_bp, bill_bp
 
 # 加载环境变量
 load_dotenv()
@@ -18,12 +19,27 @@ app = Flask(__name__)
 app.secret_key = os.getenv('SECRET_KEY', 'your-secret-key-change-in-production')
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
+# 配置上传目录
+rootDir = os.path.dirname(os.path.abspath(__file__))
+app.config['UPLOAD_FOLDER'] = os.path.join(rootDir, 'source')
+
 # 配置CORS
 CORS(app, 
      origins=['*'],
      allow_headers=['Content-Type', 'Authorization', 'datasource', 'X-Trace-Id'],
      expose_headers=['X-Trace-Id'],
      supports_credentials=True)
+
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """全局异常处理"""
+    writeLog(f"未捕获异常 - path: {request.path}, error: {str(e)}")
+    writeLog(f"错误堆栈: {traceback.format_exc()}")
+    
+    return jsonify({
+        'success': False,
+        'message': str(e)
+    }), 500
 
 # 全局请求前钩子
 @app.before_request
@@ -43,6 +59,8 @@ def after_request(response):
 # 注册路由
 app.register_blueprint(auth_bp)
 app.register_blueprint(workspace_bp)
+app.register_blueprint(file_bp)
+app.register_blueprint(bill_bp)
 
 # 健康检查接口
 @app.route('/api/health', methods=['GET'])
@@ -60,5 +78,5 @@ def health():
 
 # 应用启动
 if __name__ == '__main__':
-    writeLog("Flask 应用启动 - 已集成认证系统、上传功能和汇总功能")
+    writeLog("Flask 应用启动 - 已集成认证系统、文件上传和账单管理功能")
     app.run(host='0.0.0.0', port=7788, debug=True)

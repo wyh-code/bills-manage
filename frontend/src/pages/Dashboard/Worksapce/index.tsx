@@ -5,7 +5,6 @@ import styles from './index.module.less';
 import Link from "@/component/Link";
 import Share from "@/component/Share";
 import TextBallonWithEllipse from "@/component/TextBallonWithEllipse";
-// import CopyText from "@/component/CopyText";
 import { WORKSTACE_STATUS } from '@/common/const';
 import { workspaceApi, Workspace } from "@/api/workspace";
 import authService from '@/auth/authService';
@@ -133,12 +132,16 @@ export default () => {
                   </div> */}
                     <div className={styles.item}>
                       <div className={styles.label}>负责人:</div>
-                      <TextBallonWithEllipse text={formateUser([item.owner])} line={1} />
+                       <div className={styles.value}>
+                        <TextBallonWithEllipse text={formateUser([item.owner])} line={1} />
+                       </div>
                       {/* <div className={styles.value}>{formateUser([item.owner])}</div> */}
                     </div>
                     <div className={styles.item}>
                       <div className={styles.label}>成员:</div>
-                      <TextBallonWithEllipse text={formateUser(item.members)} line={1} />
+                      <div className={styles.value}>
+                        <TextBallonWithEllipse text={formateUser(item.members)} line={1} />
+                      </div>
                       {/* <div className={styles.value}>{formateUser(item.members)}</div> */}
                     </div>
                     <div className={styles.item}>
@@ -155,9 +158,12 @@ export default () => {
                 </div>
                 {/* 只有负责人可以操作 */}
                 <div className={`${styles.footer} ${user.openid !== item.owner.openid ? styles.disabled : ''}`}>
-                  <Share disabled={user.openid !== item.owner.openid} />
+                  <Share 
+                    className={`${item.status !== 'active' && styles.disabled}`} 
+                    disabled={user.openid !== item.owner.openid || item.status !== 'active'} 
+                  />
                   <div className={styles.right}>
-                    <Link onClick={() => onEdit(item)}>编辑</Link>
+                    <Link className={`${item.status !== 'active' && styles.disabled}`}  onClick={() => onEdit(item)}>编辑</Link>
                     {
                       item.status === 'active' ? (
                         <Link style={{ marginLeft: 8 }} onClick={() => onStatusChange(item, 'inactive')}>冻结</Link>
@@ -165,7 +171,14 @@ export default () => {
                         <Link style={{ marginLeft: 8 }} onClick={() => onStatusChange(item, 'active')}>恢复</Link>
                       )
                     }
-                    <Link type="red" style={{ marginLeft: 8 }} onClick={() => onDelete(item)}>删除</Link>
+                    <Link 
+                      className={`${item.status !== 'active' && styles.disabled}`}
+                      type="red" 
+                      style={{ marginLeft: 8 }} 
+                      onClick={() => onDelete(item)}
+                    >
+                      删除
+                    </Link>
                   </div>
                 </div>
               </div>

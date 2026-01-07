@@ -1,0 +1,46 @@
+.dataView {
+  flex: 1;
+  background: #fff;
+  border-radius: var(--space-8);
+  padding: var(--space-20);
+  margin-top: var(--space-20);
+  display: flex;
+  flex-direction: column;
+  min-height: 0px;
+
+  .title {
+    color: var(--text-1);
+    font-size: 18px;
+    font-weight: 500;
+
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .bills {
+    flex: 1;
+    overflow-y: scroll;
+    min-height: 0px;
+    padding: var(--space-16) 0px;
+
+    .billStatus {
+      font-size: 12px;
+      text-align: center;
+      padding: 100px 0;
+
+      .billTip {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: var(--space-16);
+        color: var(--text-2);
+        gap: var(--space-16);
+      }
+
+      .billName {
+        color: var(--text-3);
+      }
+    }
+  }
+}

@@ -49,9 +49,9 @@ class WorkspaceAPI {
   /**
    * 获取用户所有空间列表
    */
-  async list(): Promise<Workspace[]> {
+  async list(params?: { status: string }): Promise<Workspace[]> {
     const response = await apiClient.get<ApiResponse<Workspace[]>>(
-      '/workspaces'
+      '/workspaces', { params }
     );
     
     if (!response.data.success || !response.data.data) {
