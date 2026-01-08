@@ -1,55 +1,108 @@
+import { message, Modal } from "antd";
 import Link from "@/component/Link";
+import { billApi } from '@/api/bill';
+import Status from "@/component/Status";
 import styles from './index.module.less'
 
-export const getColumns = () => {
+export const getColumns = ({ setUpdate }) => {
+
+  const onConfirm = (row) => {
+    row.status = 'active';
+    billApi.update(row.workspace_id, row.id, row).then(res => {
+      setUpdate(+new Date);
+      message.success('账单状态已更新')
+    })
+  }
+
+  const onPay = (row) => {
+    Modal.confirm({
+      title: '确认支付账单',
+      content: (
+        <div className={styles.confirm}>
+          <p key={row.id}>
+            <span>{row.bank}</span> -
+            <span>{row.card_last4}</span> -
+            <span>{row.trade_date}</span> -
+            <span>{`¥ ${row.amount_cny}` || `${row.currency} ${row.amount_foreign}`}</span>
+          </p>
+        </div>
+      ),
+      onOk: () => {
+        row.status = 'payed';
+        billApi.update(row.workspace_id, row.id, row).then(res => {
+          setUpdate(+new Date);
+          message.success('账单状态已更新')
+        })
+      }
+    })
+  }
+
   const columns = [
     {
       title: '发卡行',
       width: 100,
       dataIndex: 'bank',
-      key: 'name',
+      key: 'back',
     },
     {
       title: '卡号',
       width: 100,
-      dataIndex: 'card',
-      key: 'card',
+      dataIndex: 'card_last4',
+      key: 'card_last4',
     },
     {
       title: '账务空间',
       width: 100,
-      dataIndex: 'card',
-      key: 'card',
+      dataIndex: 'workspace_id',
+      key: 'workspace_id',
     },
     {
       title: '交易日期',
       width: 100,
-      dataIndex: 'card',
-      key: 'card',
+      dataIndex: 'trade_date',
+      key: 'trade_date',
     },
     {
       title: '记账金额',
       width: 100,
-      dataIndex: 'card',
-      key: 'card',
+      dataIndex: 'amount_foreign',
+      key: 'amount_foreign',
     },
     {
       title: '人民币金额',
       width: 100,
-      dataIndex: 'card',
-      key: 'card',
+      dataIndex: 'amount_cny',
+      key: 'amount_cny',
+    },
+    {
+      title: '状态',
+      width: 100,
+      dataIndex: 'status',
+      key: 'status',
+      render: (value) => <Status type={value} />
     },
     {
       title: '操作',
       width: 100,
       dataIndex: 'handler',
       key: 'handler',
-      render: (value, index, row) => {
-
+      render: (value, row) => {
+        console.log(row.status !== 'pending', row.status)
         return (
           <div className={styles.handler}>
-            <Link>结算</Link>
-            <div className={styles.reset}>恢复</div>
+            <Link
+              onClick={() => onPay(row)}
+              disabled={row.status === 'payed'}
+            >
+              结算
+            </Link>
+            <Link
+              style={{ marginLeft: 12 }}
+              onClick={() => onConfirm(row)}
+              disabled={row.status !== 'pending'}
+            >
+              确认
+            </Link>
           </div>
         )
       }

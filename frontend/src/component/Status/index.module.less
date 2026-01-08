@@ -1,0 +1,37 @@
+.status {
+  display: flex;
+  align-items: center;
+  font-size: 12px;
+
+  &::before {
+    content: '';
+    display: block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    border: 2px solid var(--text-4);
+    background-color: var(--text-3);
+    margin-right: var(--space-4);
+  }
+}
+
+.active {
+  &::before {
+    background-color: var(--blue);
+    border: 2px solid var(--blue-bg);
+  }
+}
+
+.pending {
+  &::before {
+    background-color: var(--yellow);
+    border: 2px solid var(--yellow-bg);
+  }
+}
+
+.payed {
+  &::before {
+    background-color: var(--primary);
+    border: 2px solid var(--primary-bg);
+  }
+}

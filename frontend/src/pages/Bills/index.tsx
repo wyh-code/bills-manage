@@ -1,68 +1,175 @@
-import { useEffect, useState } from 'react';
-import { Table, Form, Select, Row, Col, DatePicker, Button } from 'antd';
+import { useCallback, useEffect, useState } from 'react';
+import { Table, Form, Select, Row, Col, DatePicker, Button, message, Spin, Modal } from 'antd';
+import { billApi } from '@/api/bill';
+import { workspaceApi } from "@/api/workspace";
 import { getColumns } from './getColumns'
 import styles from './index.module.less';
 
-function Bills() {
-  const [datasource, setDatasource] = useState([{}]);
-  const [cardOptions, setCardOptions] = useState([]);
-  const [selectedRowKeys, setSelectedRowKeys] = useState([])
+export default () => {
+  const [datasource, setDatasource] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [workspaces, setWorkspaces] = useState([]);
+  const [cards, setCards] = useState([]);
+  const [selectedRows, setSelectedRows] = useState([]);
+  const [spinning, setSpinning] = useState(false);
+  const [searchParams, setSearchParams] = useState({ page: 1, page_size: 10 });
+  const [update, setUpdate] = useState(0);
+  const [visible, setVisible] = useState(false);
 
-  const fetchDatasource = () => {
-    console.log('fetchDatasource')
+  const fetchDatasource = useCallback(async () => {
+    setSpinning(true)
+    billApi.list(searchParams).then(res => {
+      setDatasource(res.items)
+      setTotal(res?.total)
+    }).catch(error => {
+      message.error(error.message)
+    }).finally(() => setSpinning(false))
+  }, [searchParams, update])
+
+  const fetchWorkspace = () => {
+    workspaceApi.list().then(res => {
+      const options = (res || []).map(workspace => ({ label: workspace.name, value: workspace.id }))
+      setWorkspaces(options);
+    }).catch((error: any) => {
+      message.error(error.message)
+    })
   }
 
-  const columns = getColumns() as any;
+  const fetchCards = async () => {
+    billApi.getCardList().then(res => {
+      const options = (res || []).map(card => ({ label: card.card_last4, value: card.card_last4 }))
+      setCards(options);
+    }).catch(error => {
+      message.error(error.message)
+    })
+  }
 
-  const onRowSelectChange = (selectedRowKeys, selectedRows) => {
-    console.log(selectedRowKeys, selectedRows)
+  const columns = getColumns({ setUpdate }) as any;
+
+  const onRowSelectChange = (selectedRowKeys, selectedRows, { type }) => {
+    if (selectedRows.length && type === 'all') {
+      selectedRows = datasource.map(item => item.id);
+    }
+    setSelectedRows(selectedRows);
+  }
+
+  const onConfirm = () => {
+    billApi.batchUpdate({
+      workspace_id: selectedRows[0].workspace_id,
+      updates: selectedRows.map(item => ({ ...item, status: 'payed' }))
+    }).then(res => {
+      setVisible(false);
+      setSearchParams({ ...searchParams })
+    })
+  }
+
+  const onFinish = (values) => {
+    if (values.date) {
+      values.start_date = values.date[0].format('YYYY-MM-DD');
+      values.end_date = values.date[1].format('YYYY-MM-DD');
+    }
+    console.log({ ...searchParams, ...values })
+    setSearchParams({ ...searchParams, ...values })
+  }
+
+  const onReset = () => {
+    setSearchParams({ page: 1, page_size: 10 })
+  }
+
+  const onPaginationChange = (page: number) => {
+    setSearchParams({ ...searchParams, page })
   }
 
   useEffect(() => {
-    fetchDatasource()
+    fetchWorkspace();
+    fetchCards()
   }, [])
+
+  useEffect(() => {
+    fetchDatasource();
+  }, [fetchDatasource])
 
   return (
     <div className={styles.bills}>
-      <Form
-        className={styles.form}
-      >
-        <Row gutter={24}>
-          <Col span={8}>
-            <Form.Item label="卡号" style={{ marginBottom: 0 }}>
-              <Select options={cardOptions} />
-            </Form.Item>
-          </Col>
-          <Col span={8}>
-            <Form.Item label="日期" style={{ marginBottom: 0 }}>
-              <DatePicker.RangePicker style={{ width: '100%' }} />
-            </Form.Item>
-          </Col>
-          <Col span={8}>
-            <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
-              <Button type="primary">查询</Button>
-              <Button style={{ marginLeft: 8 }}>重置</Button>
-            </Form.Item>
-          </Col>
-        </Row>
-      </Form>
-      <div className={styles.table}>
-        <div className={styles.bar}>
-          <Button type="primary">批量结算</Button>
+      <Spin spinning={spinning}>
+        <Form
+          onFinish={onFinish}
+          onReset={onReset}
+          className={styles.form}
+        >
+          <Row gutter={24}>
+            <Col span={6}>
+              <Form.Item label="账务空间" name="workspace_ids" style={{ marginBottom: 0 }}>
+                <Select placeholder="请选择" mode="multiple" options={workspaces} />
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item label="卡号" name="card_last4_list" style={{ marginBottom: 0 }}>
+                <Select placeholder="请选择" mode="multiple" options={cards} />
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item label="日期" name="date" style={{ marginBottom: 0 }}>
+                <DatePicker.RangePicker style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
+            <Col span={6}>
+              <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+                <Button type="primary" htmlType='submit'>查询</Button>
+                <Button style={{ marginLeft: 8 }} htmlType='reset'>重置</Button>
+              </Form.Item>
+            </Col>
+          </Row>
+        </Form>
+        <div className={styles.table}>
+          <div className={styles.bar}>
+            <Button disabled={!selectedRows.length} type="primary" onClick={() => setVisible(true)}>
+              批量结算
+            </Button>
+          </div>
+          <Table
+            rowKey="id"
+            rowSelection={{
+              fixed: true,
+              selectedRowKeys: selectedRows.map(item => item.id),
+              onChange: onRowSelectChange
+            }}
+            pagination={{
+              total,
+              onChange: onPaginationChange
+            }}
+            columns={columns}
+            dataSource={datasource}
+          />
         </div>
-        <Table 
-          rowSelection={{
-            fixed: true,
-            selectedRowKeys,
-            onChange: onRowSelectChange
-          }}
+      </Spin>
 
-          columns={columns} 
-          dataSource={datasource} 
-        />
-      </div>
+      <Modal
+        open={visible}
+        title="确认结算以下账单？"
+        onCancel={() => setVisible(false)}
+        footer={(
+          <div>
+            <Button onClick={onConfirm} type="primary">确定</Button>
+            <Button style={{ marginLeft: 8 }} onClick={() => setVisible(false)}>
+              取消
+            </Button>
+          </div>
+        )}
+      >
+        <div className={styles.confirm}>
+          {
+            selectedRows.map(item => (
+              <p key={item.id}>
+                <span>{item.bank}</span> -
+                <span>{item.card_last4}</span> -
+                <span>{item.trade_date}</span> -
+                <span>{`¥ ${item.amount_cny}` || `${item.currency} ${item.amount_foreign}`}</span>
+              </p>
+            ))
+          }
+        </div>
+      </Modal>
     </div>
   );
 }
-
-export default Bills;

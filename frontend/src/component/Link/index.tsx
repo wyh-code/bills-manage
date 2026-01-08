@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import styles from './index.module.less'
 
-export default ({ children, style, to, type, onClick, className }: any) => {
+export default ({ children, style, to, type, onClick, className, disabled }: any) => {
   const navigate = useNavigate();
 
   const clickFunc = (...args) => {
@@ -14,7 +14,11 @@ export default ({ children, style, to, type, onClick, className }: any) => {
   }
 
   return (
-    <span className={`${styles.link} ${styles[type]} ${className}`} style={style} onClick={clickFunc}>
+    <span 
+      className={`${styles.link} ${styles[type]} ${className} ${disabled && styles.disabled}`} 
+      style={style} 
+      onClick={clickFunc}
+    >
       {children}
     </span>
   )

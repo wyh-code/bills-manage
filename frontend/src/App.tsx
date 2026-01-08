@@ -18,7 +18,9 @@ export default function App() {
           // Seed Token，影响范围大
           colorPrimary: '#FF6619',
           borderRadius: 4,
-          colorTextBase: '#111720'
+          colorTextBase: '#111720',
+          colorTextPlaceholder: '#bcc5d1',
+          colorErrorOutline: '#F04631',
         },
       }}
     >
