@@ -5,8 +5,8 @@ import { isExcel, isImage, isPDF } from '@/utils/utils';
 import { workspaceApi } from "@/api/workspace";
 import { fileApi } from "@/api/upload";
 import Empty from '@/component/Empty';
-import PDFView from './PDFView';
-import ExcelView from './ExcelView';
+import PDFViewer from '@/component/PDFViewer';
+import ExcelView from '@/component/ExcelView';
 import Bills from './Bills';
 
 import styles from './index.module.less';
@@ -109,7 +109,7 @@ export default () => {
       <div className={styles.preview}>
         {file ? (
           <>
-            {isPDF(file) && <PDFView fileUrl={URL.createObjectURL(file)} />}
+            {isPDF(file) && <PDFViewer fileUrl={URL.createObjectURL(file)} />}
             {isExcel(file) && <ExcelView file={file} />}
             {isImage(file) && <img src={URL.createObjectURL(file)} alt="preview" />}
           </>

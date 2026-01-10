@@ -16,7 +16,7 @@ export default () => {
   const [update, setUpdate] = useState(0);
   const [visible, setVisible] = useState(false);
 
-  const fetchDatasource = useCallback(async () => {
+  const fetchDatasource = useCallback(() => {
     setSpinning(true)
     billApi.list(searchParams).then(res => {
       setDatasource(res.items)

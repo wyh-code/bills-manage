@@ -1,4 +1,5 @@
 """文件上传服务"""
+import os
 import threading
 from datetime import datetime
 from sqlalchemy.orm import Session
@@ -263,3 +264,50 @@ def get_file_progress(db: Session, workspace_id: str, file_id: str, openid: str)
         writeLog(str(e))
     
     return result
+
+def get_file_for_view(db: Session, workspace_id: str, file_id: str, openid: str) -> tuple:
+    """
+    获取文件用于预览或下载
+    :return: (file_path: str, filename: str, mime_type: str)
+    :raises ValueError: 权限不足或文件不存在
+    """
+    # 权限校验
+    has_permission, _ = check_workspace_permission(db, workspace_id, openid)
+    if not has_permission:
+        raise ValueError('无权限访问该空间')
+    
+    # 查询文件记录
+    file_record = db.query(FileUpload).filter(
+        FileUpload.id == file_id,
+        FileUpload.workspace_id == workspace_id,
+        FileUpload.is_deleted == False
+    ).first()
+    
+    if not file_record:
+        raise ValueError('文件记录不存在')
+    
+    # 获取文件绝对路径
+    absolute_path = get_absolute_path(file_record.saved_path)
+    
+    # 检查文件是否存在
+    if not os.path.exists(absolute_path):
+        writeLog(f"文件物理路径不存在 - file_id: {file_id}, path: {absolute_path}")
+        raise ValueError('文件物理文件缺失')
+    
+    # 获取MIME类型
+    file_ext = get_file_extension(file_record.original_filename)
+    mime_type = _get_mime_type(file_ext)
+    
+    return absolute_path, file_record.original_filename, mime_type
+
+
+def _get_mime_type(file_ext: str) -> str:
+    """根据文件扩展名返回MIME类型"""
+    mime_map = {
+        'pdf': 'application/pdf',
+        'png': 'image/png',
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'ecxml': 'application/xml'
+    }
+    return mime_map.get(file_ext.lower(), 'application/octet-stream')

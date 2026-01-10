@@ -1,5 +1,6 @@
 """文件管理路由"""
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, send_file, make_response
+from urllib.parse import quote
 from app.database import SessionLocal
 from app.utils.decorators import jwt_required
 from app.utils.file_utils import allowed_file, writeLog
@@ -117,3 +118,55 @@ def get_file_progress(file_id):
         }), 500
     finally:
         db.close() 
+
+@file_bp.route('/<string:file_id>', methods=['GET'])
+@jwt_required
+def get_file(file_id):
+    """
+    文件预览/下载接口
+    支持两种认证方式：
+    1. Authorization: Bearer <token> （优先）
+    2. URL参数 ?token=xxx （用于浏览器直接访问）
+    """
+    db = SessionLocal()
+    try:
+        workspace_id = request.args.get('workspace_id')
+        is_download = request.args.get('download', 'false').lower() == 'true'
+        
+        if not workspace_id:
+            return jsonify({'success': False, 'message': 'workspace_id参数不能为空'}), 400
+        
+        # openid 已由 @jwt_required 注入到 request.openid
+        file_path, filename, mime_type = file_service.get_file_for_view(
+            db=db,
+            workspace_id=workspace_id,
+            file_id=file_id,
+            openid=request.openid
+        )
+        
+        response = make_response(
+            send_file(
+                file_path,
+                mimetype=mime_type,
+                conditional=True
+            )
+        )
+        
+        # 使用 RFC 5987 编码支持中文文件名
+        from urllib.parse import quote
+        encoded_filename = quote(filename)
+        
+        if is_download:
+            response.headers['Content-Disposition'] = f"attachment; filename*=UTF-8''{encoded_filename}"
+        else:
+            response.headers['Content-Disposition'] = f"inline; filename*=UTF-8''{encoded_filename}"
+        
+        return response
+        
+    except ValueError as e:
+        return jsonify({'success': False, 'message': str(e)}), 404
+    except Exception as e:
+        writeLog(f"获取文件异常 - file_id: {file_id}, error: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        db.close()

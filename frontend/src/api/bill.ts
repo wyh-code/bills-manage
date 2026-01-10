@@ -81,7 +81,7 @@ class BillAPI {
   /**
    * 分页查询账单列表
    */
-  async list(params: BillListParams): Promise<BillListResponse> {
+  async list(params: BillListParams={}): Promise<BillListResponse> {
     // 转换数组参数为逗号分隔字符串
     const queryParams: any = {
       ...params,

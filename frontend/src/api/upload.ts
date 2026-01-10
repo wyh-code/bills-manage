@@ -1,3 +1,4 @@
+import authService from '@/auth/authService';
 import apiClient from './client';
 
 export interface UploadFileResponse {
@@ -11,6 +12,14 @@ export interface UploadFileResponse {
     bills?: any[];
     bills_count?: number;
   };
+}
+
+export interface FileInfo {
+  file_id: string;
+  original_filename: string;
+  file_status: 'processing' | 'completed' | 'failed';
+  bills_count: number;
+  bills?: any[];
 }
 
 export interface ApiResponse<T = any> {
@@ -52,14 +61,8 @@ class FileAPI {
   /**
    * 获取文件处理进度
    */
-  async getProgress(fileId: string, workspaceId: string): Promise<{
-    file_id: string;
-    original_filename: string;
-    file_status: 'processing' | 'completed' | 'failed';
-    bills_count: number;
-    bills?: any;
-  }> {
-    const response = await apiClient.get(
+  async getProgress(fileId: string, workspaceId: string): Promise<FileInfo> {
+    const response = await apiClient.get<ApiResponse<FileInfo>>(
       `/files/${fileId}/progress`,
       {
         params: { workspace_id: workspaceId },
@@ -71,6 +74,104 @@ class FileAPI {
     }
 
     return response.data.data;
+  }
+
+  /**
+   * 获取文件预览 URL（用于 PDF/图片直接预览）
+   * * @param fileId 文件ID
+   * @param workspaceId 空间ID
+   * @returns 可直接用于预览的URL（包含token）
+   */
+  getPreviewUrl(fileId: string, workspaceId: string): string {
+    const token = authService.getToken();
+    const baseUrl = apiClient.defaults.baseURL;
+    return `${baseUrl}/files/${fileId}?workspace_id=${workspaceId}&token=${token}`;
+  }
+
+  /**
+   * 获取文件下载 URL
+   * @param fileId 文件ID
+   * @param workspaceId 空间ID
+   * @returns 可直接用于下载的URL（包含token）
+   */
+  getDownloadUrl(fileId: string, workspaceId: string): string {
+    const token = authService.getToken();
+    const baseUrl = apiClient.defaults.baseURL;
+    return `${baseUrl}/files/${fileId}?workspace_id=${workspaceId}&download=true&token=${token}`;
+  }
+
+  /**
+   * 获取文件用于预览（转换为 File 对象）
+   */
+  async getFileForPreview(fileId: string, workspaceId: string): Promise<File> {
+    try {
+      // 获取文件信息（含文件名）
+      const fileInfo = await this.getProgress(fileId, workspaceId);
+
+      // 下载文件
+      const response = await apiClient.get(`/files/${fileId}`, {
+        params: { workspace_id: workspaceId },
+        responseType: 'blob',
+      });
+
+      // 转换为 File 对象
+      const file = new File([response.data], fileInfo.original_filename, {
+        type: response.headers['content-type'] || 'application/octet-stream',
+      });
+
+      return file;
+    } catch (error) {
+      throw new Error('获取文件失败');
+    }
+  }
+
+  /**
+   * 预览文件（新标签页打开，适用于 PDF/图片）
+   */
+  preview(fileId: string, workspaceId: string): void {
+    const url = this.getPreviewUrl(fileId, workspaceId);
+    window.open(url, '_blank');
+  }
+
+  /**
+   * 下载文件
+   */
+  async download(fileId: string, workspaceId: string): Promise<void> {
+    try {
+      const fileInfo = await this.getProgress(fileId, workspaceId);
+
+      const response = await apiClient.get(`/files/${fileId}`, {
+        params: {
+          workspace_id: workspaceId,
+          download: true,
+        },
+        responseType: 'blob',
+      });
+
+      // 从响应头提取文件名
+      const disposition = response.headers['content-disposition'];
+      let filename = fileInfo.original_filename;
+
+      if (disposition) {
+        const filenameMatch = disposition.match(/filename\*?=["']?(?:UTF-8'')?([^"';]+)["']?/i);
+        if (filenameMatch) {
+          filename = decodeURIComponent(filenameMatch[1]);
+        }
+      }
+
+      // 创建 Blob 并触发下载
+      const blob = new Blob([response.data]);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      throw new Error('文件下载失败');
+    }
   }
 }
 
