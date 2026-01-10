@@ -17,6 +17,7 @@ export default () => {
   const [file, setFile] = useState<File | null>(null);
   const [options, setOptions] = useState<any[]>([]);
   const [uploadResult, setUploadResult] = useState<any>({});
+  const [disabledUpload, setDisabledUpload] = useState<any>(false);
 
   const [form] = Form.useForm();
 
@@ -69,7 +70,7 @@ export default () => {
 
   const fetchWorkspace = async () => {
     try {
-      const res = await workspaceApi.list({ status: 'active' });
+      const res = await workspaceApi.list({ status: 'active', role: 'editor' });
       const options = res?.map(item => ({
         label: item.name,
         value: item.id
@@ -140,6 +141,7 @@ export default () => {
               name="workspace"
             >
               <Select
+                disabled={disabledUpload}
                 placeholder="请选择账务空间"
                 options={options}
                 allowClear
@@ -148,7 +150,7 @@ export default () => {
             </Form.Item>
           </Form>
 
-          <Upload {...uploadProps} style={{ width: "100%" }}>
+          <Upload {...uploadProps} style={{ width: "100%" }} disabled={disabledUpload}>
             <div className={styles.uploadInner}>
               <UploadOutlined style={{ fontSize: 24 }} />
               <div>支持 PDF、PNG、JPG、ECXML 格式，单个文件不超过 16MB</div>
@@ -160,6 +162,7 @@ export default () => {
           uploadResult={uploadResult}
           file={file}
           handleReset={handleReset}
+          setDisabledUpload={(bool) => setDisabledUpload(bool)}
         />
       </div>
     </div>

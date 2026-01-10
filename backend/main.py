@@ -9,7 +9,7 @@ from app.utils.trace_util import generate_trace_id
 import traceback
 
 # 导入路由
-from app.routes import auth_bp, workspace_bp, file_bp, bill_bp
+from app.routes import auth_bp, workspace_bp, file_bp, bill_bp, invitation_bp
 
 # 加载环境变量
 load_dotenv()
@@ -61,6 +61,7 @@ app.register_blueprint(auth_bp)
 app.register_blueprint(workspace_bp)
 app.register_blueprint(file_bp)
 app.register_blueprint(bill_bp)
+app.register_blueprint(invitation_bp)
 
 # 健康检查接口
 @app.route('/api/health', methods=['GET'])

@@ -54,16 +54,30 @@ def create_workspace():
 def get_workspaces():
     """
     获取用户空间列表
-    GET /api/workspaces
+    GET /api/workspaces?status=active&role=editor
     Headers: Authorization: Bearer <token>
+    
+    Query参数:
+    - status: 可选，过滤空间状态 (active/inactive)
+    - role: 可选，过滤用户角色 (owner/editor/viewer)，返回权限>=该角色的空间
     """
     db = SessionLocal()
     try:
         status = request.args.get('status')
+        role = request.args.get('role')
+        
+        # 角色参数校验
+        if role and role not in ['owner', 'editor', 'viewer']:
+            return jsonify({
+                'success': False,
+                'message': 'role参数只能是 owner、editor 或 viewer'
+            }), 400
+        
         workspaces = workspace_service.get_user_workspaces(
             db=db,
             openid=request.openid,
-            status=status
+            status=status,
+            role=role
         )
         
         return jsonify({

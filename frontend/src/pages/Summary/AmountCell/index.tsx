@@ -12,8 +12,6 @@ export default ({ month, row }) => {
 
   const data = row[month]
 
-  console.log(row, month)
-
   const onPriview = (fileInfo) => {
     setVisible(true);
     setFileInfo(fileInfo)
@@ -24,8 +22,8 @@ export default ({ month, row }) => {
   return (
     <>
       {
-        Object.entries(data.currencyAmounts).map(([currency, amount]: [string, number]) => (
-          <div className={styles.amount}>
+        Object.entries(data.currencyAmounts).map(([currency, amount]: [string, number], index) => (
+          <div className={styles.amount} key={index}>
             {currency}: {amount.toFixed(2)}
             <EyeOutlined onClick={() => setOpen(true)} style={{ marginLeft: 8 }} />
           </div>
@@ -64,7 +62,7 @@ export default ({ month, row }) => {
         open={visible} 
         title="原始账单" 
         onClose={() => setVisible(false)}
-        width="70vw"
+        size={1200}
       >
         <FilePreview
           fileId={fileInfo?.file_upload_id}

@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Spin, message } from 'antd';
+import { message } from 'antd';
 import { Authmate } from '@ostore/authmate';
-import authService from '../../auth/authService';
+import authService from '@/auth/authService';
+import { getUrlParams } from '@/utils/utils';
 import styles from './index.module.less';
 
 export default () => {
@@ -40,7 +41,12 @@ export default () => {
           // token存储
           authService.wechatLogin(userInfo);
           message.success('登录成功');
-          navigate('/dashboard', { replace: true })
+          const back_url = getUrlParams('back_url');
+          if(back_url) {
+            navigate(back_url, { replace: true })
+          } else {
+            navigate('/dashboard', { replace: true })
+          }
         } else {
           message.error('登录失败，未获取到授权码');
         }

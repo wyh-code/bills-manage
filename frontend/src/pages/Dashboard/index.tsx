@@ -1,14 +1,29 @@
+import { useEffect, useState } from 'react';
+import { invitationApi } from '@/api/invitation';
+import { getUrlParams } from '@/utils/utils';
+import { generateDonutChartSVG } from '@/utils/svg';
 import Worksapce from './Worksapce';
 import CostView from './CostView';
 import styles from './index.module.less';
-import { generateDonutChartSVG } from '@/utils/svg';
 
 function Dashboard() {
+  const [joined, setJoined] = useState(0);
 
   const svg = generateDonutChartSVG(
     [{ color: '#FF6619', scale: 90 }, { color: '#007AFF', scale: 60 }],
     [26, 15]
   )
+
+  const jionToken = getUrlParams('join');
+
+  useEffect(() => {
+    if (jionToken) {
+      invitationApi.join(jionToken).then(res => {
+        console.log('res: ', res)
+        setJoined(+new Date)
+      })
+    }
+  }, [jionToken])
 
   return (
     <div className={styles.dashboard}>
@@ -61,7 +76,7 @@ function Dashboard() {
             </div>
           </div>
         </div>
-        <Worksapce />
+        <Worksapce joined={joined} />
       </div>
       <div className={styles.side}>
         <div className={styles.message}>

@@ -10,7 +10,7 @@ import { workspaceApi, Workspace } from "@/api/workspace";
 import authService from '@/auth/authService';
 import { formateTime, formateUser } from '@/utils/utils'
 
-export default () => {
+export default ({ joined }) => {
   const [open, setOpen] = useState(false);
   const [formData, setData] = useState<any>({});
   const [spinning, setSpinning] = useState(false);
@@ -29,7 +29,7 @@ export default () => {
 
   useEffect(() => {
     fetchWorkspace()
-  }, [])
+  }, [joined])
 
   const onCancel = () => {
     form.resetFields();
@@ -85,7 +85,7 @@ export default () => {
   const onDelete = (workspace) => {
     Modal.confirm({
       title: '确定删除该空间吗？',
-      content: '空间删除后，空间下所有账单均不在参与数据计算！',
+      content: '空间删除后，空间下所有账单均不再参与数据计算！',
       onOk: () => {
         workspaceApi.delete(workspace.id).then(res => {
           fetchWorkspace();
@@ -135,14 +135,12 @@ export default () => {
                        <div className={styles.value}>
                         <TextBallonWithEllipse text={formateUser([item.owner])} line={1} />
                        </div>
-                      {/* <div className={styles.value}>{formateUser([item.owner])}</div> */}
                     </div>
                     <div className={styles.item}>
                       <div className={styles.label}>成员:</div>
                       <div className={styles.value}>
                         <TextBallonWithEllipse text={formateUser(item.members)} line={1} />
                       </div>
-                      {/* <div className={styles.value}>{formateUser(item.members)}</div> */}
                     </div>
                     <div className={styles.item}>
                       <div className={styles.label}>描述:</div>
@@ -159,6 +157,7 @@ export default () => {
                 {/* 只有负责人可以操作 */}
                 <div className={`${styles.footer} ${user.openid !== item.owner.openid ? styles.disabled : ''}`}>
                   <Share 
+                    workspaceId={item.id}
                     className={`${item.status !== 'active' && styles.disabled}`} 
                     disabled={user.openid !== item.owner.openid || item.status !== 'active'} 
                   />

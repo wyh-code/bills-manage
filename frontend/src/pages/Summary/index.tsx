@@ -98,14 +98,14 @@ export default () => {
 
     // 按卡号分组并计算每月汇总
     rawData.forEach((bill) => {
-      const { 
-        bank, 
-        card_last4, 
-        amount_foreign, 
-        amount_cny, 
-        currency, 
-        trade_date, 
-        raw_line, 
+      const {
+        bank,
+        card_last4,
+        amount_foreign,
+        amount_cny,
+        currency,
+        trade_date,
+        raw_line,
         description,
         file_upload_id,
         workspace_id
@@ -145,21 +145,21 @@ export default () => {
           currencyAmounts: {}, // 按币种分别存储
         };
       }
-      
+
       monthlyData[month].originalDataList.push({
         raw_line: raw_line || description,
-        origin: { 
-          file_upload_id, 
+        origin: {
+          file_upload_id,
           workspace_id,
-          amount_foreign, 
-          amount_cny, 
-          currency, 
-          trade_date,  
+          amount_foreign,
+          amount_cny,
+          currency,
+          trade_date,
         }
       });
 
       // 按币种累计
-      if(amount_cny){
+      if (amount_cny) {
         monthlyData[month].currencyAmounts.CNY = monthlyData[month].currencyAmounts.CNY || 0;
         monthlyData[month].currencyAmounts.CNY += (amount_cny || 0);
       } else {
@@ -243,8 +243,10 @@ export default () => {
         key: 'rowCount',
         fixed: 'left',
         width: 120,
-        render: (rowCount: number) => (
-          Object.keys(rowCount).map(currency => <p><Text strong>{currency}: {rowCount[currency].toFixed(2)}</Text></p>)
+        render: (rowCount: number, index) => (
+          Object.keys(rowCount).map(currency => (
+            <p key={index}><Text strong>{currency}: {rowCount[currency].toFixed(2)}</Text></p>
+          ))
         ),
       },
     ];
@@ -281,6 +283,18 @@ export default () => {
 
     return [...baseColumns, ...monthColumns];
   }, [sortedMonths, monthTotals, exchangeRate]);
+
+  const plusTotalCount = (totalCount) => {
+    const totalMap = {};
+    totalCount.forEach(cardTotal => {
+      Object.keys(cardTotal).forEach(currency => {
+        totalMap[currency] = totalMap[currency] || 0;
+        totalMap[currency] += cardTotal[currency]
+      })
+    })
+    console.log(Object.entries(totalMap))
+    return Object.entries(totalMap)
+  }
 
   return (
     <div className={styles.summary}>
@@ -351,7 +365,10 @@ export default () => {
               style={{ width: 120 }}
             />
             <span style={{ marginLeft: 20 }}>
-              {/* <Text strong>总合计：¥{viewCount.toFixed(2)}</Text> */}
+              <Text strong>总合计：</Text>
+              {plusTotalCount(totalCount).map(([currency, count], index) => (
+                <Text strong key={index}>{currency} {(count as number).toFixed(2) }</Text>
+              ))}
             </span>
             <span style={{ marginLeft: 20 }}>
               <Text strong>共 {total} 项</Text>

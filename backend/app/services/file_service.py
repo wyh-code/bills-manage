@@ -157,6 +157,11 @@ def process_file_async(file_id: str, workspace_id: str, raw_content: str, origin
 def upload_and_parse_file(db: Session, workspace_id: str, openid: str, file) -> dict:
     """上传文件并解析（使用外部传入的db）"""
     try:
+        # 校验权限并获取文件记录
+        has_permission, _ = check_workspace_permission(db, workspace_id, openid, required_role='editor')
+        if not has_permission:
+            raise ValueError('无权限操作该空间')
+    
         original_filename = file.filename
         file_ext = get_file_extension(original_filename)
         

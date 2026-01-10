@@ -26,7 +26,7 @@ export const useFileProgress = ({
   fileId,
   onCompleted,
   onFailed,
-  pollingInterval = 2000,
+  pollingInterval = 4000,
 }: UseFileProgressParams): UseFileProgressReturn => {
   const defaultState: FileProgressState = {
     status: 'idle',

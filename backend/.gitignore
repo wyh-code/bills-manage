@@ -1,5 +1,6 @@
 .env
 database/
+source/
 __pycache__
 
 # Logs

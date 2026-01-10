@@ -2,8 +2,7 @@
 """账务空间服务"""
 from datetime import datetime
 from sqlalchemy.orm import Session
-from app.models import Workspace, WorkspaceMember, User
-from app.models.enum import CommonStatus
+from app.models import Workspace, WorkspaceMember, User, FileUpload, Bill
 from app.utils.file_utils import writeLog
 
 def _get_user_info(db: Session, openid: str) -> dict:
@@ -51,7 +50,7 @@ def create_workspace(db: Session, openid: str, name: str, description: str = Non
     workspace = Workspace(
         name=name,
         description=description,
-        status=CommonStatus.ACTIVE,
+        status='active',
         owner_openid=openid
     )
     db.add(workspace)
@@ -70,14 +69,35 @@ def create_workspace(db: Session, openid: str, name: str, description: str = Non
     writeLog(f"创建空间成功 - workspace_id: {workspace.id}, owner: {openid}")
     return workspace
 
-def get_user_workspaces(db: Session, openid: str, status: str | None) -> list:
-    """获取用户有权限的所有空间"""
+def get_user_workspaces(db: Session, openid: str, status: str | None = None, role: str | None = None) -> list:
+    """
+    获取用户有权限的所有空间
+    :param openid: 用户openid
+    :param status: 可选，过滤空间状态 (active/inactive)
+    :param role: 可选，过滤用户角色 (owner/editor/viewer)，返回大于等于该角色权限的空间
+    """
     members = db.query(WorkspaceMember).filter(
         WorkspaceMember.member_openid == openid,
         WorkspaceMember.is_deleted == False
     ).all()
     
+    # 角色权限过滤
+    if role:
+        role_levels = {'owner': 3, 'editor': 2, 'viewer': 1}
+        required_level = role_levels.get(role, 0)
+        
+        # 过滤出权限大于等于指定角色的成员记录
+        members = [
+            m for m in members 
+            if role_levels.get(m.role, 0) >= required_level
+        ]
+    
     workspace_ids = [m.workspace_id for m in members]
+    
+    # 如果没有符合条件的空间，直接返回空列表
+    if not workspace_ids:
+        return []
+    
     query = db.query(Workspace).filter(
         Workspace.id.in_(workspace_ids),
         Workspace.is_deleted == False,
@@ -169,7 +189,7 @@ def update_workspace(db: Session, workspace_id: int, openid: str,
     writeLog(f"更新空间成功 - workspace_id: {workspace_id}")
     return workspace
 
-def delete_workspace(db: Session, workspace_id: int, openid: str) -> None:
+def delete_workspace(db: Session, workspace_id: int, openid: str) -> dict:
     """软删除空间（仅owner）"""
     workspace = db.query(Workspace).filter(
         Workspace.id == workspace_id,
@@ -186,16 +206,43 @@ def delete_workspace(db: Session, workspace_id: int, openid: str) -> None:
     workspace.is_deleted = True
     workspace.deleted_at = datetime.now()
     
-    # 软删除所有成员记录
-    db.query(WorkspaceMember).filter(
+    # 软删除成员记录
+    member_count = db.query(WorkspaceMember).filter(
         WorkspaceMember.workspace_id == workspace_id,
         WorkspaceMember.is_deleted == False
     ).update({
         'is_deleted': True,
         'deleted_at': datetime.now()
-    })
-    # 软删除所有账单
-    # todo
+    }, synchronize_session=False)
+    
+    # 软删除文件记录
+    file_count = db.query(FileUpload).filter(
+        FileUpload.workspace_id == workspace_id,
+        FileUpload.is_deleted == False
+    ).update({
+        'is_deleted': True,
+        'deleted_at': datetime.now()
+    }, synchronize_session=False)
+    
+    # 软删除账单
+    bill_count = db.query(Bill).filter(
+        Bill.workspace_id == workspace_id,
+        Bill.is_deleted == False
+    ).update({
+        'is_deleted': True,
+        'deleted_at': datetime.now()
+    }, synchronize_session=False)
     
     db.commit()
-    writeLog(f"删除空间成功 - workspace_id: {workspace_id}")
+    
+    writeLog(
+        f"删除空间成功 - workspace_id: {workspace_id}, "
+        f"成员: {member_count}, 文件: {file_count}, 账单: {bill_count}"
+    )
+    
+    return {
+        'workspace_id': workspace_id,
+        'deleted_members': member_count,
+        'deleted_files': file_count,
+        'deleted_bills': bill_count
+    }

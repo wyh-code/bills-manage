@@ -87,3 +87,40 @@ export const formateTime = (time: any) => {
 export const formateUser = (members: any) => {
   return members.filter(it => it).map(user => user?.nickname).join(', ')
 }
+
+export const getUrlParams = (key?: string, url: string = window.location.href): any => {
+  try {
+    const urlObj = new URL(url);
+    const params = new URLSearchParams(urlObj.search);
+    const result: Record<string, string | string[]> = {};
+
+    // 遍历所有参数
+    for (const [paramKey, value] of params.entries()) {
+      // 如果参数已存在（重复参数），转换为数组
+      if (paramKey in result) {
+        const existingValue = result[paramKey];
+        if (Array.isArray(existingValue)) {
+          existingValue.push(value);
+        } else {
+          result[paramKey] = [existingValue, value];
+        }
+      } else {
+        result[paramKey] = value;
+      }
+    }
+
+    // 根据是否传入key返回不同的结果
+    if (key !== undefined) {
+      return result[key] || null;
+    }
+
+    return result;
+  } catch (error) {
+    console.error('解析URL失败:', error);
+    // 根据不同的调用方式返回不同的默认值
+    if (key !== undefined) {
+      return null;
+    }
+    return {};
+  }
+}

@@ -15,8 +15,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // 未登录，跳转到登录页
   const token = authService.getToken();
+  console.log(location)
   if (!token) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    const back_url = `${location.pathname}${location.search}`;
+    return <Navigate to={`/login?back_url=${encodeURIComponent(back_url)}`} state={{ from: location }} replace />;
   }
 
   // 需要特定权限但用户没有，跳转到403

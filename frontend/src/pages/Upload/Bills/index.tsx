@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button, Table, Tag, message, Spin } from 'antd';
 import { CheckCircleOutlined, SyncOutlined, CloseCircleOutlined } from '@ant-design/icons';
 import Empty from '@/component/Empty';
@@ -11,9 +11,10 @@ interface BillsProps {
   uploadResult: any;
   file: any;
   handleReset: any;
+  setDisabledUpload: any;
 }
 
-export default ({ workspaceId, uploadResult, file, handleReset }: BillsProps) => {
+export default ({ workspaceId, uploadResult, file, handleReset, setDisabledUpload }: BillsProps) => {
   const [spinning, setSpinning] = useState(false);
   const data = uploadResult?.data || {};
 
@@ -23,11 +24,12 @@ export default ({ workspaceId, uploadResult, file, handleReset }: BillsProps) =>
     fileId: data.file_id,
     onCompleted: (bills) => {
       console.log('处理完成，账单数量:', bills.length);
+      setDisabledUpload(false)
     },
     onFailed: () => {
       console.error('处理失败');
+      setDisabledUpload(false)
     },
-    pollingInterval: 2000,
   });
   const { status, bills, billsCount, isProcessing } = store as any;
 
@@ -101,6 +103,13 @@ export default ({ workspaceId, uploadResult, file, handleReset }: BillsProps) =>
       setSpinning(false)
     }
   }
+
+  useEffect(() => {
+    if(data.file_id) {
+      setDisabledUpload(true)
+    }
+  }, [data.file_id])
+
   return (
     <div className={styles.dataView}>
       <Spin spinning={spinning} />
