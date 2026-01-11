@@ -11,7 +11,8 @@ from app.models import (
     FileUpload, 
     Bill,
     WorkspaceInvitation,
-    InvitationUse
+    InvitationUse,
+    Notification
 )
 
 def init_database():
@@ -32,6 +33,7 @@ def init_database():
     print("  5. bills                       - 账单明细表")
     print("  6. workspace_invitations       - 空间邀请记录表")
     print("  7. invitation_uses             - 邀请使用记录表")
+    print("  8. notifications               - 系统通知表")
     
     print("\n关键设计：")
     print("  ✓ 所有用户关联使用 openid（String类型）")
@@ -43,7 +45,7 @@ def init_database():
     print("  - users.openid (唯一索引)")
     print("  - workspaces.owner_openid (普通索引)")
     print("  - workspace_members (workspace_id, member_openid, is_deleted) 复合唯一索引")
-    print("  - file_uploads (workspace_id, file_hash, is_deleted) 复合唯一索引")
+    print("  - file_uploads (workspace_id, file_hash, is_deleted, status) 复合唯一索引")
     print("  - bills (workspace_id, trade_date, is_deleted) 复合索引")
     print("  - workspace_invitations.token (唯一索引)")
     print("  - workspace_invitations (workspace_id, token, is_deleted) 复合索引")

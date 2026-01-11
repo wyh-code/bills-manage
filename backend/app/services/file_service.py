@@ -15,6 +15,54 @@ from app.utils.file_utils import (
     writeLog
 )
 
+def clean_bill_data(bill: dict) -> dict:
+    """
+    清洗账单数据，处理各种异常情况
+    Args: bill: 原始账单数据字典
+    Returns: 清洗后的账单数据字典
+    """
+    cleaned = {}
+    
+    # 字符串字段 - 直接复制或设置默认值
+    string_fields = ['bank', 'description', 'card_last4', 'currency', 'raw_line']
+    for field in string_fields:
+        cleaned[field] = bill.get(field, '')
+    
+    # 日期字段 - 转换为 date 对象
+    for date_field in ['trade_date', 'record_date']:
+        value = bill.get(date_field)
+        if isinstance(value, str):
+            try:
+                cleaned[date_field] = datetime.strptime(value, '%Y-%m-%d').date()
+            except:
+                cleaned[date_field] = None
+        elif value:
+            cleaned[date_field] = value
+        else:
+            cleaned[date_field] = None
+    
+    # 金额字段 - 处理空字符串、'-'、None 等情况
+    for amount_field in ['amount_cny', 'amount_foreign']:
+        value = bill.get(amount_field)
+        
+        # 处理各种空值情况
+        if value in ('', '-', None, 'null', 'NULL'):
+            cleaned[amount_field] = None
+        else:
+            try:
+                # 尝试转换为 float
+                cleaned[amount_field] = float(value)
+            except (ValueError, TypeError):
+                # 转换失败，设置为 None
+                cleaned[amount_field] = None
+    
+    # 固定字段
+    cleaned['status'] = 'pending'
+    cleaned['is_deleted'] = False
+    cleaned['deleted_at'] = None
+    
+    return cleaned
+
 def check_workspace_permission(db: Session, workspace_id: str, openid: str, required_role: str = None) -> tuple:
     """
     检查用户是否为空间成员及权限等级
@@ -57,6 +105,9 @@ def check_file_duplicate(db: Session, workspace_id: str, file_hash: str) -> tupl
     if not file_record:
         return False, None, []
     
+    if file_record and file_record.status == 'failed':
+        return False, None, []
+    
     # 获取关联的账单
     bills = db.query(Bill).filter(
         Bill.file_upload_id == file_record.id,
@@ -82,25 +133,10 @@ def process_file_async(file_id: str, workspace_id: str, raw_content: str, origin
             refined_content = refine_bill_content(raw_content, original_filename)
             
             if refined_content:
-                bills_data_json = convert_bills_to_json(refined_content)
+                bills_data_json_list = convert_bills_to_json(refined_content)
                 
-                for bill_data in bills_data_json:
-                    if bill_data.get('trade_date'):
-                        bill_data['trade_date'] = datetime.strptime(bill_data['trade_date'], '%Y-%m-%d').date()
-                    if bill_data.get('record_date'):
-                        bill_data['record_date'] = datetime.strptime(bill_data['record_date'], '%Y-%m-%d').date()
-                    if bill_data.get('amount_cny'):
-                        try:
-                            bill_data['amount_cny'] = float(bill_data['amount_cny'])
-                        except (ValueError, TypeError):
-                            bill_data['amount_cny'] = None
-                    if bill_data.get('amount_foreign'):
-                        try:
-                            bill_data['amount_foreign'] = float(bill_data['amount_foreign'])
-                        except (ValueError, TypeError):
-                            bill_data['amount_foreign'] = None
-                    
-                    bills_data.append(bill_data)
+                # 3. 清洗每条账单数据
+                bills_data = [clean_bill_data(bill) for bill in bills_data_json_list]
                 
                 writeLog(f"精炼完成 - file_id: {file_id}, bills: {len(bills_data)}")
         except Exception as e:

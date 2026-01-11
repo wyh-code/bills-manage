@@ -60,7 +60,7 @@ def batch_confirm_bills():
 def get_bills():
     """
     分页查询账单列表
-    GET /api/bills?workspace_ids=id1,id2&card_last4_list=1234,5678&start_date=2025-01-01&end_date=2025-12-31&page=1&page_size=20
+    GET /api/bills?workspace_ids=id1,id2&card_last4_list=1234,5678&start_date=2025-01-01&end_date=2025-12-31&page=1&page_size=20&status=active
     """
     db = SessionLocal()
     try:
@@ -70,6 +70,9 @@ def get_bills():
         
         card_last4_str = request.args.get('card_last4_list')
         card_last4_list = card_last4_str.split(',') if card_last4_str else None
+
+        status_str = request.args.get('status_list')
+        status_list = status_str.split(',') if status_str else None
         
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
@@ -88,6 +91,7 @@ def get_bills():
             openid=request.openid,
             workspace_ids=workspace_ids,
             card_last4_list=card_last4_list,
+            status_list=status_list,
             start_date=start_date,
             end_date=end_date,
             page=page,
@@ -207,7 +211,7 @@ def batch_update_bills():
         data = request.get_json()
         
         workspace_id = data.get('workspace_id')
-        updates = data.get('updates', [])
+        updates = data.get('data', [])
         
         if not workspace_id:
             return jsonify({'success': False, 'message': 'workspace_id参数不能为空'}), 400
@@ -234,6 +238,54 @@ def batch_update_bills():
     except Exception as e:
         db.rollback()
         writeLog(f"批量更新账单异常 - error: {str(e)}")
+        writeLog(f"错误堆栈: {traceback.format_exc()}")
+        return jsonify({'success': False, 'message': str(e)}), 500
+    finally:
+        db.close()
+
+@bill_bp.route('/create', methods=['POST'])
+@jwt_required
+def batch_create_bills():
+    """
+    批量更新账单
+    PUT /api/bills/batch
+    Body: { 
+        workspace_id: string,
+        data: bills
+    }
+    """
+    db = SessionLocal()
+    try:
+        data = request.get_json()
+        
+        workspace_id = data.get('workspace_id')
+        bills_data = data.get('data', [])
+        
+        if not workspace_id:
+            return jsonify({'success': False, 'message': 'workspace_id参数不能为空'}), 400
+        
+        if not bills_data or not isinstance(bills_data, list):
+            return jsonify({'success': False, 'message': 'bills_data必须是非空数组'}), 400
+        
+        if len(bills_data) > 100:
+            return jsonify({'success': False, 'message': '单次最多更新100条账单'}), 400
+        
+        result = bill_service.batch_create_bills(
+            db=db,
+            workspace_id=workspace_id,
+            bills_data=bills_data,
+            openid=request.openid
+        )
+        
+        return jsonify({'success': True, 'data': result}), 200
+        
+    except ValueError as e:
+        db.rollback()
+        writeLog(f"批量创建账单 - ValueError - error: {str(e)}")
+        return jsonify({'success': False, 'message': str(e)}), 403
+    except Exception as e:
+        db.rollback()
+        writeLog(f"批量创建账单异常 - error: {str(e)}")
         writeLog(f"错误堆栈: {traceback.format_exc()}")
         return jsonify({'success': False, 'message': str(e)}), 500
     finally:

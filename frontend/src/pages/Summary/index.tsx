@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { Table, Tooltip, InputNumber, Space, Typography, Spin, DatePicker, Select, Button, Form, Row, Col, message } from 'antd';
 import { billApi } from '@/api/bill';
 import { workspaceApi } from '@/api/workspace';
-import moment from 'moment';
+import dayjs from 'dayjs';
 import AmountCell from './AmountCell';
 import styles from './index.module.less';
 
@@ -23,12 +23,13 @@ export default () => {
     dateRange: null,
     workspaceIds: [],
     cardNumbers: [],
+    status: [],
   });
 
   // 获取空间列表
   const fetchWorkspaces = useCallback(async () => {
     try {
-      const res = await workspaceApi.list({ status: 'active' });
+      const res = await workspaceApi.list({ status: 'active', role: 'viewer' });
       setWorkspaceList(res || []);
     } catch (error: any) {
       message.error(error.message || '获取空间列表失败');
@@ -49,7 +50,7 @@ export default () => {
   const fetchBillList = useCallback(async () => {
     setLoading(true);
     try {
-      const { dateRange, workspaceIds, cardNumbers } = filters;
+      const { dateRange, workspaceIds, cardNumbers, status } = filters;
 
       const params: any = {
         page: 1,
@@ -62,6 +63,10 @@ export default () => {
 
       if (cardNumbers && cardNumbers.length > 0) {
         params.card_last4_list = cardNumbers;
+      }
+
+      if (status && status.length > 0) {
+        params.status_list = status;
       }
 
       if (dateRange && dateRange.length === 2) {
@@ -111,7 +116,7 @@ export default () => {
         workspace_id
       } = bill;
 
-      const month = moment(trade_date).format('YYYY-MM');
+      const month = dayjs(trade_date).format('YYYY-MM');
       const cardKey = `${card_last4}_${bank}`;
 
       monthSet.add(month);
@@ -203,6 +208,7 @@ export default () => {
       dateRange: values.dateRange || null,
       workspaceIds: values.workspaceIds || [],
       cardNumbers: values.cardNumbers || [],
+      status: values.status || [],
     });
   };
 
@@ -213,6 +219,7 @@ export default () => {
       dateRange: null,
       workspaceIds: [],
       cardNumbers: [],
+      status: [],
     });
   };
 
@@ -305,8 +312,8 @@ export default () => {
           onReset={handleReset}
           className={styles.form}
         >
-          <Row gutter={16}>
-            <Col span={6}>
+          <Row gutter={30}>
+            <Col span={5}>
               <Form.Item label="账务空间" name="workspaceIds" style={{ marginBottom: 0 }}>
                 <Select
                   mode="multiple"
@@ -323,7 +330,7 @@ export default () => {
                 </Select>
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col span={5}>
               <Form.Item label="卡号" name="cardNumbers" style={{ marginBottom: 0 }}>
                 <Select
                   mode="multiple"
@@ -339,12 +346,28 @@ export default () => {
                 </Select>
               </Form.Item>
             </Col>
-            <Col span={6}>
-              <Form.Item label="时间区间" name="dateRange" style={{ marginBottom: 0 }}>
+            <Col span={5}>
+              <Form.Item label="日期" name="dateRange" style={{ marginBottom: 0 }}>
                 <RangePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col span={5}>
+              <Form.Item label="状态" name="status" style={{ marginBottom: 0 }}>
+                <Select
+                  mode="multiple"
+                  placeholder="请选择状态"
+                  options={[
+                    // active/inactive/pending/modified/payed
+                    { label: '待确定', value: 'pending' },
+                    { label: '已确定', value: 'active' },
+                    { label: '已修改', value: 'modified' },
+                    { label: '已支付', value: 'payed' },
+                    { label: '已失效', value: 'inactive' },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={4}>
               <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
                 <Button type="primary" htmlType="submit">查询</Button>
                 <Button htmlType="reset" style={{ marginLeft: 8 }}>重置</Button>
@@ -367,7 +390,7 @@ export default () => {
             <span style={{ marginLeft: 20 }}>
               <Text strong>总合计：</Text>
               {plusTotalCount(totalCount).map(([currency, count], index) => (
-                <Text strong key={index}>{currency} {(count as number).toFixed(2) }</Text>
+                <Text strong key={index}>{currency} {(count as number).toFixed(2)}</Text>
               ))}
             </span>
             <span style={{ marginLeft: 20 }}>

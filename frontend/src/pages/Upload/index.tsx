@@ -110,7 +110,7 @@ export default () => {
       <div className={styles.preview}>
         {file ? (
           <>
-            {isPDF(file) && <PDFViewer fileUrl={URL.createObjectURL(file)} />}
+            {isPDF(file) && <PDFViewer file={file} />}
             {isExcel(file) && <ExcelView file={file} />}
             {isImage(file) && <img src={URL.createObjectURL(file)} alt="preview" />}
           </>

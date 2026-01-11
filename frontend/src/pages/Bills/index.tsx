@@ -48,7 +48,7 @@ export default () => {
 
   const onRowSelectChange = (selectedRowKeys, selectedRows, { type }) => {
     if (selectedRows.length && type === 'all') {
-      selectedRows = datasource.map(item => item.id);
+      selectedRows = [...datasource];
     }
     setSelectedRows(selectedRows);
   }
@@ -97,23 +97,38 @@ export default () => {
           onReset={onReset}
           className={styles.form}
         >
-          <Row gutter={24}>
-            <Col span={6}>
+          <Row gutter={30}>
+            <Col span={5}>
               <Form.Item label="账务空间" name="workspace_ids" style={{ marginBottom: 0 }}>
-                <Select placeholder="请选择" mode="multiple" options={workspaces} />
+                <Select placeholder="请选择账务空间" mode="multiple" options={workspaces} />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col span={5}>
               <Form.Item label="卡号" name="card_last4_list" style={{ marginBottom: 0 }}>
-                <Select placeholder="请选择" mode="multiple" options={cards} />
+                <Select placeholder="请选择卡号" mode="multiple" options={cards} />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col span={5}>
               <Form.Item label="日期" name="date" style={{ marginBottom: 0 }}>
                 <DatePicker.RangePicker style={{ width: '100%' }} />
               </Form.Item>
             </Col>
-            <Col span={6}>
+            <Col span={5}>
+              <Form.Item label="状态" name="status_list" style={{ marginBottom: 0 }}>
+                <Select
+                  mode="multiple"
+                  placeholder="请选择状态"
+                  options={[
+                    { label: '待确定', value:'pending' },
+                    { label: '已确定', value:'active' },
+                    { label: '已修改', value:'modified' },
+                    { label: '已支付', value:'payed' },
+                    { label: '已失效', value:'inactive' },
+                  ]}
+                />
+              </Form.Item>
+            </Col>
+            <Col span={4}>
               <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
                 <Button type="primary" htmlType='submit'>查询</Button>
                 <Button style={{ marginLeft: 8 }} htmlType='reset'>重置</Button>
@@ -129,6 +144,8 @@ export default () => {
           </div>
           <Table
             rowKey="id"
+            columns={columns}
+            dataSource={datasource}
             rowSelection={{
               fixed: true,
               selectedRowKeys: selectedRows.map(item => item.id),
@@ -136,10 +153,9 @@ export default () => {
             }}
             pagination={{
               total,
-              onChange: onPaginationChange
+              onChange: onPaginationChange,
+              showTotal: (total) => `共 ${total} 条`,
             }}
-            columns={columns}
-            dataSource={datasource}
           />
         </div>
       </Spin>

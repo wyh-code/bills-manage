@@ -150,7 +150,7 @@ export default ({ joined }) => {
                     </div>
                     <div className={styles.item}>
                       <div className={styles.label}>创建时间:</div>
-                      <div className={styles.value}>{formateTime(item.created_at)}</div>
+                      <div className={styles.value}>{formateTime(item.created_at, true)}</div>
                     </div>
                   </div>
                 </div>

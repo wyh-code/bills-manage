@@ -28,7 +28,7 @@ class FileUpload(Base):
     created_at = Column(DateTime, default=datetime.now, comment='记录创建时间')
     
     __table_args__ = (
-        Index('idx_workspace_file_hash', 'workspace_id', 'file_hash', 'is_deleted', unique=True),
+        Index('idx_workspace_file_hash', 'workspace_id', 'file_hash', 'is_deleted', 'status', unique=True),
     )
     
     def to_dict(self):

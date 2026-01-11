@@ -20,6 +20,7 @@ export interface Bill {
 export interface BillListParams {
   workspace_ids?: string[];  // 空间ID列表（多选）
   card_last4_list?: string[];  // 卡号列表（多选）
+  status_list?: string[];  // 状态列表（多选）
   start_date?: string;  // YYYY-MM-DD
   end_date?: string;    // YYYY-MM-DD
   page?: number;
@@ -58,7 +59,7 @@ export interface BatchUpdateItem {
 
 export interface BatchUpdateRequest {
   workspace_id: string;
-  updates: BatchUpdateItem[];
+  data: BatchUpdateItem[];
 }
 
 export interface BatchUpdateResponse {
@@ -87,6 +88,7 @@ class BillAPI {
       ...params,
       workspace_ids: params.workspace_ids?.join(','),
       card_last4_list: params.card_last4_list?.join(','),
+      status_list: params.status_list?.join(','),
       page: params.page || 1,
       page_size: params.page_size || 20,
     };
@@ -179,6 +181,21 @@ class BillAPI {
   async batchUpdate(data: BatchUpdateRequest): Promise<BatchUpdateResponse> {
     const response = await apiClient.put<ApiResponse<BatchUpdateResponse>>(
       '/bills/update',
+      data
+    );
+
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.message || '批量更新失败');
+    }
+
+    return response.data.data;
+  }
+  /**
+   * 批量创建账单
+   */
+  async batchCreate(data: BatchUpdateRequest): Promise<BatchUpdateResponse> {
+    const response = await apiClient.post<ApiResponse<BatchUpdateResponse>>(
+      '/bills/create',
       data
     );
 

@@ -45,7 +45,7 @@ const FilePreview: React.FC<FilePreviewProps> = ({ fileId, workspaceId }) => {
 
     switch (ext) {
       case 'pdf':
-        return <PDFViewer fileUrl={URL.createObjectURL(file)} />;
+        return <PDFViewer file={file} />;
 
       case 'xlsx':
       case 'xls':

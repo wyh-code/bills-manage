@@ -5,6 +5,8 @@ from .file_upload import FileUpload
 from .bill import Bill
 from .workspace_invitation import WorkspaceInvitation
 from .invitation_use import InvitationUse
+from .notification import Notification
+from .notification_types import NotificationType, NotificationPriority
 
 __all__ = [
     'User', 
@@ -13,5 +15,8 @@ __all__ = [
     'FileUpload', 
     'Bill', 
     'WorkspaceInvitation',
-    'InvitationUse'
+    'InvitationUse',
+    'Notification',
+    'NotificationType',
+    'NotificationPriority'
 ]

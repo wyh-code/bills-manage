@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Button, Table, Tag, message, Spin } from 'antd';
-import { CheckCircleOutlined, SyncOutlined, CloseCircleOutlined } from '@ant-design/icons';
+import { Table, Button, Modal } from 'antd';
 import Empty from '@/component/Empty';
 import { useFileProgress } from '@/hooks/useFileProgress';
-import { billApi } from '@/api/bill';
+import { getColumns, renderStatusTag, inputKey, checkRequire } from './utils';
+import ConfirmButton from './ConfirmButton';
 import styles from './index.module.less';
 
 interface BillsProps {
@@ -15,11 +15,12 @@ interface BillsProps {
 }
 
 export default ({ workspaceId, uploadResult, file, handleReset, setDisabledUpload }: BillsProps) => {
-  const [spinning, setSpinning] = useState(false);
+  const [selectedRows, setSelectedRows] = useState([]);
+  const [datasource, setDatasource] = useState([]);
   const data = uploadResult?.data || {};
 
   // 使用轮询Hook
-  const [store, initStore] = useFileProgress({
+  const [{ status, bills, billsCount, isProcessing }] = useFileProgress({
     workspaceId,
     fileId: data.file_id,
     onCompleted: (bills) => {
@@ -31,126 +32,133 @@ export default ({ workspaceId, uploadResult, file, handleReset, setDisabledUploa
       setDisabledUpload(false)
     },
   });
-  const { status, bills, billsCount, isProcessing } = store as any;
 
-  const columns = [
-    {
-      title: '卡号',
-      dataIndex: 'card_last4',
-      width: '10%',
-      render: (text: string) => text ? text : '-',
-    },
-    {
-      title: '交易日',
-      dataIndex: 'trade_date',
-      width: '15%',
-    },
-    {
-      title: '人民币金额',
-      dataIndex: 'amount_cny',
-      width: '12%',
-      render: (text: number) => text ? `¥${text.toFixed(2)}` : '-',
-    },
-    {
-      title: '交易地金额',
-      dataIndex: 'amount_foreign',
-      width: '13%',
-      render: (text: string, record: any) =>
-        text ? `${text} ${record.currency || ''}` : '-',
-    },
-  ];
-
-  // 渲染状态标签
-  const renderStatusTag = () => {
-    if (status === 'processing' || isProcessing) {
-      return (
-        <Tag icon={<SyncOutlined spin />} color="processing">
-          解析中
-        </Tag>
-      );
+  const onRowSelectChange = (_, selectedRows, { type }) => {
+    if (selectedRows.length && type === 'all') {
+      selectedRows = [...bills];
     }
-    if (status === 'completed') {
-      return (
-        <Tag icon={<CheckCircleOutlined />} color="success">
-          已完成
-        </Tag>
-      );
-    }
-    if (status === 'failed') {
-      return (
-        <Tag icon={<CloseCircleOutlined />} color="error">
-          解析失败
-        </Tag>
-      );
-    }
-    return null;
-  };
-
-  const submitBills = async () => {
-    try {
-      setSpinning(true)
-      const res = await billApi.batchConfirm({ 
-        workspace_id: workspaceId, file_id: data.file_id, bill_ids: bills?.map(bill => bill.id)
-      });
-     
-      console.log('res: ', res)
-      message.success('账单状态更新状态成功');
-      handleReset();
-      initStore()
-    } catch (err: any) {
-      message.error(err.message || '批量更新状态失败');
-    } finally {
-      setSpinning(false)
-    }
+    setSelectedRows(selectedRows);
   }
 
+  const onEdit = (key, value, row) => {
+    row[key] = value;
+    if(value !== undefined) {
+      row[`${key}_tip`] = '';
+    }
+    if(key === 'currency' && row[key]) {
+      row[key] = row[key].toUpperCase()
+    }
+    row.status = 'modified'
+    setDatasource([...datasource])
+  }
+
+  const onRemove = (index) => {
+    Modal.confirm({
+      title: '确定删除该账单？',
+      onOk: () => {
+        const [row]: any = datasource.splice(index, 1);
+        const newSelectedRows = selectedRows.filter(it => {
+          return it.id !== row.id
+        });
+        setSelectedRows(newSelectedRows)
+        setDatasource([...datasource])
+      }
+    })
+  }
+
+  const onChangeStatus = (row) => {
+    // 必填项校验
+    let isRequire = true;
+    if(row.isEdit) {
+      isRequire = checkRequire(row);
+    }
+    row.isEdit = !isRequire || !row.isEdit;
+    setDatasource([...datasource])
+  }
+
+  const addBills = () => {
+    const temp = { ...datasource[0], id: +new Date, type: 'add', status: 'modified' };
+    Object.keys(temp).forEach(key => {
+      if (inputKey.includes(key)) {
+        temp[key] = undefined
+      }
+    })
+
+    datasource.push(temp);
+    setDatasource([...datasource])
+  }
+
+  const handleResetHandler = () => {
+    setDatasource([]);
+    handleReset();
+  }
+
+  const columns = getColumns({ onEdit, onRemove, onChangeStatus });
+
   useEffect(() => {
-    if(data.file_id) {
+    if (bills) {
+      setDatasource([...bills])
+    }
+  }, [bills])
+
+  useEffect(() => {
+    if (data.file_id) {
       setDisabledUpload(true)
     }
   }, [data.file_id])
 
   return (
     <div className={styles.dataView}>
-      <Spin spinning={spinning} />
       <div className={styles.title}>
-        <div>解析结果</div>
-        {bills.length ? (
-          <Button 
-            type="primary" 
-            disabled={!workspaceId || !data.file_id} 
-            onClick={submitBills}
-          >
-            确认解析结果
-          </Button>
-        ) : null}
+        <div className={styles.name}>
+          解析结果
+        </div>
+        <div className={styles.action}>
+          {
+            !workspaceId || !data.file_id || isProcessing ? null : (
+              <Button type="primary" onClick={addBills} style={{ marginRight: 10 }} >
+                添加账单
+              </Button>
+            )
+          }
+          <ConfirmButton
+            handleReset={handleResetHandler}
+            workspaceId={workspaceId}
+            file_id={data.file_id}
+            selectedRows={selectedRows}
+            bills={bills}
+          />
+        </div>
       </div>
       <div className={styles.bills}>
         {
           (data.file_id && isProcessing) ? (
             <div className={styles.billStatus}>
               <div className={styles.billTip}>
-                <span>文件状态: {renderStatusTag()}</span>
+                <span>文件状态: {renderStatusTag(status, isProcessing)}</span>
                 <span>账单数量: {billsCount}</span>
               </div>
 
               <div className={styles.billName}>
                 当前文件: {file.name}
               </div>
-
             </div>
           ) : (
             bills.length ? (
               <Table
-                style={{ width: "100%" }}
-                dataSource={bills}
-                columns={columns}
                 rowKey="id"
+                dataSource={datasource}
+                columns={columns}
+                scroll={{ x: 'max-content', y: 480 }}
+                rowSelection={{
+                  fixed: true,
+                  selectedRowKeys: selectedRows.map(item => item.id),
+                  onChange: onRowSelectChange
+                }}
                 pagination={{
-                  pageSize: 10,
+                  pageSize: 999,
                   showTotal: (total) => `共 ${total} 条`,
                 }}
-                scroll={{ x: 'max-content' }}
               />
             ) : (
               <Empty

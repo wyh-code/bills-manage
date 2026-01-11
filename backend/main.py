@@ -28,7 +28,8 @@ CORS(app,
      origins=['*'],
      allow_headers=['Content-Type', 'Authorization', 'datasource', 'X-Trace-Id'],
      expose_headers=['X-Trace-Id'],
-     supports_credentials=True)
+     supports_credentials=True,
+     max_age= 86400)
 
 @app.errorhandler(Exception)
 def handle_exception(e):

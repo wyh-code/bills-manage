@@ -34,6 +34,7 @@ def get_bills(
     openid: str, 
     workspace_ids: list = None,
     card_last4_list: list = None,
+    status_list: str = None,
     start_date: str = None, 
     end_date: str = None,
     page: int = 1,
@@ -43,6 +44,7 @@ def get_bills(
     分页查询账单列表
     :param workspace_ids: 空间ID列表（多选）
     :param card_last4_list: 卡号末四位列表（多选）
+    :param status_list: 账单状态
     :param start_date: 开始日期 YYYY-MM-DD（基于trade_date）
     :param end_date: 结束日期 YYYY-MM-DD（基于trade_date）
     :param page: 页码（从1开始）
@@ -74,6 +76,10 @@ def get_bills(
     # 筛选：卡号
     if card_last4_list:
         query = query.filter(Bill.card_last4.in_(card_last4_list))
+
+    # 筛选：状态
+    if status_list:
+        query = query.filter(Bill.status.in_(status_list))
     
     # 筛选：日期范围
     if start_date:
@@ -338,7 +344,7 @@ def batch_update_bills(db: Session, workspace_id: str, updates: list, openid: st
                 bill.status = item['status']
             
             updated_count += 1
-            results.append({'bill_id': item, 'success': True})
+            results.append({'bill_id': id, 'success': True})
             
         except Exception as e:
             failed_count += 1
@@ -350,6 +356,67 @@ def batch_update_bills(db: Session, workspace_id: str, updates: list, openid: st
     
     return {
         'updated_count': updated_count,
+        'failed_count': failed_count,
+        'results': results
+    }
+
+def batch_create_bills(db: Session, workspace_id: str, bills_data: list, openid: str) -> dict:
+    """
+    批量更新账单
+    :param bills_data: [{'bill_id': 'xxx', 'data': {...}}, ...]
+    :return: {updated_count, failed_count, results}
+    """
+    # 校验权限（需要editor及以上）
+    has_permission, user_role = _check_workspace_permission(db, workspace_id, openid, required_role='editor')
+    if not has_permission:
+        raise ValueError('无权限执行此操作，需要editor或owner角色')
+    
+    created_count = 0
+    failed_count = 0
+    results = []
+    
+    # 创建账单
+    for bill_item in bills_data:
+        try:
+            if bill_item['trade_date']:
+                try:
+                    bill_item['trade_date'] = datetime.strptime(bill_item['trade_date'], '%Y-%m-%d').date()
+                except ValueError:
+                    pass
+            
+            if bill_item['record_date']:
+                try:
+                    bill_item['record_date'] = datetime.strptime(bill_item['record_date'], '%Y-%m-%d').date()
+                except ValueError:
+                    pass
+
+            bill = Bill(
+                file_upload_id=bill_item.get('file_upload_id'),
+                workspace_id=workspace_id,
+                bank=bill_item.get('bank'),
+                trade_date=bill_item.get('trade_date'),
+                record_date=bill_item.get('record_date'),
+                description=bill_item.get('description'),
+                amount_cny=bill_item.get('amount_cny'),
+                card_last4=bill_item.get('card_last4'),
+                amount_foreign=bill_item.get('amount_foreign'),
+                currency=bill_item.get('currency'),
+                raw_line=bill_item.get('raw_line', ''),
+                status=bill_item.get('status')
+            )
+            db.add(bill)
+            created_count += 1
+            results.append({'bill_id': bill_item.get('id', ''), 'success': True})
+        except Exception as e:
+            failed_count += 1
+            results.append({'bill_id': bill_item.get('id', ''), 'success': False, 'message': str(e)})
+    
+    db.commit()
+    
+    writeLog(f"批量创建账单 - workspace_id: {workspace_id}, updated: {created_count}, failed: {failed_count}")
+    
+    return {
+        'created_count': created_count,
         'failed_count': failed_count,
         'results': results
     }

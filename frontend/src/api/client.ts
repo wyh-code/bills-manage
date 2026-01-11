@@ -34,10 +34,10 @@ const apiClient = axios.create({
 
         // 清除token并跳转登录
         authService.onUnauthorized();
-        message.error((error.response.data as any)?.message || '没有权限')
+        message.error((error.response?.data as any)?.message || '没有权限')
         return Promise.reject(error);
       }
-      message.error((error.response.data as any)?.message || '请求错误')
+      message.error((error.response?.data as any)?.message || '请求错误')
       return Promise.reject(error);
     }
   );

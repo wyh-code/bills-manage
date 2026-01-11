@@ -1,23 +1,23 @@
 import React, { useState } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
-import 'react-pdf/dist/Page/AnnotationLayer.css';  // ⭐ 添加
-import 'react-pdf/dist/Page/TextLayer.css';        // ⭐ 添加
+import 'react-pdf/dist/Page/AnnotationLayer.css';
+import 'react-pdf/dist/Page/TextLayer.css';
 import styles from './index.module.less';
 
 pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.mjs`;
 
 interface PDFViewerAllProps {
-  fileUrl: string;
+  file: File;
 }
 
-const PDFViewerAll: React.FC<PDFViewerAllProps> = ({ fileUrl }) => {
+const PDFViewerAll: React.FC<PDFViewerAllProps> = ({ file }) => {
   const [numPages, setNumPages] = useState<number>(0);
   const [scale, setScale] = useState<number>(1.0);
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
   };
-
+  // console.log('fileUrl: ', fileUrl)
   return (
     <div className={styles["pdf-viewer-all"]}>
       <div className={styles["pdf-toolbar"]}>
@@ -28,9 +28,10 @@ const PDFViewerAll: React.FC<PDFViewerAllProps> = ({ fileUrl }) => {
 
       <div className={styles["pdf-pages-container"]}>
         <Document
-          file={fileUrl}
+          file={file}
           onLoadSuccess={onDocumentLoadSuccess}
           loading={<div>加载中...</div>}
+          error={<div>加载失败</div>}
         >
           {Array.from(new Array(numPages), (_, index) => (
             <div key={`page_${index + 1}`} className={styles["pdf-page-wrapper"]}>

@@ -2,7 +2,7 @@
  * 文件类型判断工具
  */
 
-import moment from "moment";
+import dayjs from 'dayjs';
 
 // MIME 类型映射
 const FILE_TYPES = {
@@ -80,8 +80,9 @@ export const checkFileTypes = (files: File[]) => {
   }));
 };
 
-export const formateTime = (time: any) => {
-  return moment(time).format('YYYY-MM-DD HH:mm:ss')
+export const formateTime = (time: any, bool?) => {
+  const formatStr = `YYYY-MM-DD${bool?' HH:mm:ss':''}`
+  return dayjs(time).format(formatStr)
 }
 
 export const formateUser = (members: any) => {

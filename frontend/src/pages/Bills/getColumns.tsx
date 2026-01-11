@@ -75,6 +75,11 @@ export const getColumns = ({ setUpdate }) => {
       key: 'amount_cny',
     },
     {
+      title: '描述',
+      dataIndex: 'description',
+      width: 200,
+    },
+    {
       title: '状态',
       width: 100,
       dataIndex: 'status',

@@ -9,19 +9,36 @@
   min-height: 0px;
 
   .title {
-    color: var(--text-1);
-    font-size: 18px;
-    font-weight: 500;
-
     display: flex;
     align-items: center;
     justify-content: space-between;
+
+    .name {
+      color: var(--text-1);
+      font-size: 18px;
+      font-weight: 500;
+    }
+
+    .action {
+      display: flex;
+      align-items: center;
+    }
+  }
+
+
+  .count {
+    margin-left: var(--space-20);
+    display: flex;
+    align-items: center;
+    color: var(--primary);
+    font-size: 12px;
   }
 
   .bills {
     flex: 1;
     overflow-y: scroll;
     min-height: 0px;
+    min-width: 840px;
     margin: var(--space-16) 0px;
 
     .billStatus {
@@ -42,5 +59,22 @@
         color: var(--text-3);
       }
     }
+
+    .cellContainer {
+      position: relative;
+
+      .cellTip {
+        position: absolute;
+        bottom: 0px;
+        color: var(--red);
+        line-height: 1;
+        transform: translateY(100%);
+      }
+    }
   }
+}
+
+.failed {
+  color: var(--red);
+  font-size: 500;
 }

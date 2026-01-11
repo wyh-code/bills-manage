@@ -55,7 +55,7 @@ export const useFileProgress = ({
 
     try {
       const result = await fileApi.getProgress(fileId, workspaceId);
-      console.log('result: ', result)
+      // console.log('result: ', result)
       if (!isMountedRef.current) return;
 
       const { file_status, bills = [], bills_count } = result;
