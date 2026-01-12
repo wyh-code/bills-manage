@@ -4,13 +4,18 @@ import hashlib
 from datetime import datetime
 from nanoid import generate
 from app.utils.trace_util import get_trace_id
+from app.config import Config
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 # LangChain 导入
 from langchain_community.document_loaders import PyPDFLoader, UnstructuredImageLoader
 import xml.etree.ElementTree as ET
 
-# 允许的文件扩展名
-ALLOWED_EXTENSIONS = {'png', 'pdf', 'ecxml'}
+def writeMessage(message):
+    trace_id = get_trace_id()
+    return f"[TraceID: {trace_id}] {message}\n"
 
 def writeLog(message):
     """日志记录函数"""
@@ -30,7 +35,7 @@ def writeLog(message):
 
 def allowed_file(filename):
     """检查文件扩展名"""
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in Config.ALLOWED_EXTENSIONS
 
 def get_file_extension(filename):
     """提取文件扩展名（小写）"""
@@ -60,13 +65,13 @@ def calculate_file_hash(file_stream):
 
 def ensure_source_dir(workspace_id):
     """
-    创建上传目录结构: source/{workspace_id}/{YYYYMMDD}/
+    创建上传目录结构: storages/{workspace_id}/{YYYYMMDD}/
     :param workspace_id: 空间ID
     :return: 目录路径
     """
-    rootDir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+   
     today = datetime.now().strftime('%Y%m%d')
-    dir_path = os.path.join(rootDir, 'source', str(workspace_id), today)
+    dir_path = Config.STORAGE_DIR / str(workspace_id) / today
     os.makedirs(dir_path, exist_ok=True)
     return dir_path, today
 
@@ -101,7 +106,7 @@ def save_uploaded_file(file, workspace_id, original_filename, file_hash=None):
     # 返回相对路径（相对于source目录）
     relative_path = os.path.join(str(workspace_id), today, unique_filename)
     
-    writeLog(f"文件保存成功 - path: {relative_path}, hash: {file_hash}, size: {file_size}")
+    logger.info(writeMessage(f"文件保存成功 - path: {relative_path}, hash: {file_hash}, size: {file_size}"))
     
     return relative_path, file_hash, file_size
 
@@ -111,8 +116,7 @@ def get_absolute_path(saved_path):
     :param saved_path: 相对路径（相对于source目录）
     :return: 绝对路径
     """
-    rootDir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    return os.path.join(rootDir, 'source', saved_path)
+    return Config.STORAGE_DIR / saved_path
 
 def parse_pdf(filepath):
     """解析 PDF 文件"""
@@ -122,7 +126,7 @@ def parse_pdf(filepath):
         content = "\n\n".join([page.page_content for page in pages])
         return content
     except Exception as e:
-        writeLog(f"PDF 解析失败：{str(e)}")
+        logger.error(writeMessage(f"PDF 解析失败：{str(e)}"))
         return f"[PDF 解析错误: {str(e)}]"
 
 def parse_image(filepath):
@@ -133,7 +137,7 @@ def parse_image(filepath):
         content = "\n\n".join([doc.page_content for doc in documents])
         return content if content.strip() else "[图片未识别到文字内容]"
     except Exception as e:
-        writeLog(f"图片 OCR 失败：{str(e)}")
+        logger.error(writeMessage(f"图片 OCR 失败：{str(e)}"))
         return f"[图片解析错误: {str(e)}]"
 
 def parse_ecxml(filepath):
@@ -158,7 +162,7 @@ def parse_ecxml(filepath):
         extract_text(root)
         return "\n".join(content_parts) if content_parts else "[XML 文件无文本内容]"
     except Exception as e:
-        writeLog(f"ECXML 解析失败：{str(e)}")
+        logger.error(writeMessage(f"ECXML 解析失败：{str(e)}"))
         return f"[ECXML 解析错误: {str(e)}]"
 
 def parse_file(filepath, file_ext):

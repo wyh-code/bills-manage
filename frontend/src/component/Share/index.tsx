@@ -46,7 +46,7 @@ export default ({ disabled, className, workspaceId }: any) => {
         footer={(
           <>
             {sharedUrl ? <Button type="primary" onClick={handleCopy}>复制</Button> : null}
-            <Button type="primary" onClick={() => setSharedOpen(false)} style={{ marginLeft: 10 }}>关闭</Button>
+            <Button onClick={() => setSharedOpen(false)} style={{ marginLeft: 10 }}>关闭</Button>
           </>
         )}
       >

@@ -6,14 +6,17 @@ from sqlalchemy.orm import Session
 from app.models import FileUpload, Bill, WorkspaceMember
 from app.database import SessionLocal
 from app.utils.deepseek_util import refine_bill_content, convert_bills_to_json
+from app.utils.logger import get_logger
 from app.utils.file_utils import (
     save_uploaded_file, 
     get_absolute_path, 
     parse_file, 
     get_file_extension,
     calculate_file_hash,
-    writeLog
+    writeMessage
 )
+
+logger = get_logger(__name__)
 
 def clean_bill_data(bill: dict) -> dict:
     """
@@ -126,7 +129,7 @@ def process_file_async(file_id: str, workspace_id: str, raw_content: str, origin
     # 先完成AI调用（不占用db连接）
     bills_data = []
     
-    writeLog(f"开始精炼 - file_id: {file_id}")
+    logger.info(writeMessage(f"开始精炼 - file_id: {file_id}"))
     
     if not raw_content.startswith('['): # 不是错误信息
         try:
@@ -138,16 +141,16 @@ def process_file_async(file_id: str, workspace_id: str, raw_content: str, origin
                 # 3. 清洗每条账单数据
                 bills_data = [clean_bill_data(bill) for bill in bills_data_json_list]
                 
-                writeLog(f"精炼完成 - file_id: {file_id}, bills: {len(bills_data)}")
+                logger.info(writeMessage(f"精炼完成 - file_id: {file_id}, bills: {len(bills_data)}"))
         except Exception as e:
-            writeLog(f"精炼失败 - file_id: {file_id}, error: {str(e)}")
+            logger.error(writeMessage(f"精炼失败 - file_id: {file_id}, error: {str(e)}"))
  
     # AI调用完成后，再创建db连接做数据库操作
     db = SessionLocal()
     try:
         file_record = db.query(FileUpload).filter(FileUpload.id == file_id).first()
         if not file_record:
-            writeLog(f"文件记录不存在 - file_id: {file_id}")
+            logger.info(writeMessage(f"文件记录不存在 - file_id: {file_id}"))
             return
         
         # 创建账单
@@ -173,11 +176,11 @@ def process_file_async(file_id: str, workspace_id: str, raw_content: str, origin
         file_record.status = 'completed'
         
         db.commit()
-        writeLog(f"异步处理完成 - file_id: {file_id}, bills: {len(bills_data)}")
+        logger.info(writeMessage(f"异步处理完成 - file_id: {file_id}, bills: {len(bills_data)}"))
         
     except Exception as e:
         db.rollback()
-        writeLog(f"数据库操作失败 - file_id: {file_id}, error: {str(e)}")
+        logger.error(writeMessage(f"数据库操作失败 - file_id: {file_id}, error: {str(e)}"))
         
         # 更新失败状态
         try:
@@ -186,7 +189,7 @@ def process_file_async(file_id: str, workspace_id: str, raw_content: str, origin
                 file_record.status = 'failed'
                 db.commit()
         except Exception as update_error:
-            writeLog(f"更新失败状态异常 - file_id: {file_id}, error: {str(update_error)}")
+            logger.error(writeMessage(f"更新失败状态异常 - file_id: {file_id}, error: {str(update_error)}"))
     finally:
         db.close()  # 确保关闭
 
@@ -208,7 +211,7 @@ def upload_and_parse_file(db: Session, workspace_id: str, openid: str, file) -> 
         is_duplicate, file_record, bills = check_file_duplicate(db, workspace_id, file_hash)
         
         if is_duplicate:
-            writeLog(f"文件重复 - file_hash: {file_hash}, existing_file_id: {file_record.id}")
+            logger.info(writeMessage(f"文件重复 - file_hash: {file_hash}, existing_file_id: {file_record.id}"))
             return {
                 'status': 'duplicate',
                 'data': {
@@ -247,7 +250,7 @@ def upload_and_parse_file(db: Session, workspace_id: str, openid: str, file) -> 
         db.commit()
         db.refresh(file_record)
         
-        writeLog(f"文件上传成功 - file_id: {file_record.id}, 开始异步精炼")
+        logger.info(writeMessage(f"文件上传成功 - file_id: {file_record.id}, 开始异步精炼"))
         
         # 6. 启动后台线程
         thread = threading.Thread(
@@ -302,7 +305,7 @@ def get_file_progress(db: Session, workspace_id: str, file_id: str, openid: str)
             ).all()
             result['bills'] = [bill.to_dict() for bill in bills]
     except Exception as e:
-        writeLog(str(e))
+        logger.error(writeMessage(str(e)))
     
     return result
 
@@ -332,7 +335,7 @@ def get_file_for_view(db: Session, workspace_id: str, file_id: str, openid: str)
     
     # 检查文件是否存在
     if not os.path.exists(absolute_path):
-        writeLog(f"文件物理路径不存在 - file_id: {file_id}, path: {absolute_path}")
+        logger.warning(writeMessage(f"文件物理路径不存在 - file_id: {file_id}, path: {absolute_path}"))
         raise ValueError('文件物理文件缺失')
     
     # 获取MIME类型

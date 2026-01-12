@@ -1,11 +1,13 @@
 """账单管理路由"""
 from flask import Blueprint, request, jsonify
 from app.utils.decorators import jwt_required
-from app.utils.file_utils import writeLog
+from app.utils.file_utils import writeMessage
+from app.utils.logger import get_logger
 from app.database import SessionLocal
 from app.services import bill_service
 import traceback
 
+logger = get_logger(__name__)
 bill_bp = Blueprint('bill', __name__, url_prefix='/api/bills')
 
 @bill_bp.route('/batch', methods=['POST'])
@@ -45,12 +47,12 @@ def batch_confirm_bills():
         return jsonify({'success': True, 'data': result}), 200
         
     except ValueError as e:
-        writeLog(f"批量确认账单 - ValueError - error: {str(e)}")
+        logger.error(writeMessage(f"批量确认账单 - ValueError - error: {str(e)}"))
         return jsonify({'success': False, 'message': str(e)}), 403
     except Exception as e:
         db.rollback()
-        writeLog(f"批量确认账单异常 - error: {str(e)}")
-        writeLog(f"错误堆栈: {traceback.format_exc()}")
+        logger.error(writeMessage(f"批量确认账单异常 - error: {str(e)}"))
+        logger.error(writeMessage(f"错误堆栈: {traceback.format_exc()}"))
         return jsonify({'success': False, 'message': str(e)}), 500
     finally:
         db.close()
@@ -103,8 +105,8 @@ def get_bills():
     except ValueError as e:
         return jsonify({'success': False, 'message': str(e)}), 400
     except Exception as e:
-        writeLog(f"获取账单列表异常 - error: {str(e)}")
-        writeLog(f"错误堆栈: {traceback.format_exc()}")
+        logger.error(writeMessage(f"获取账单列表异常 - error: {str(e)}"))
+        logger.error(writeMessage(f"错误堆栈: {traceback.format_exc()}"))
         return jsonify({'success': False, 'message': str(e)}), 500
     finally:
         db.close()
@@ -130,7 +132,7 @@ def get_card_list():
         return jsonify({'success': True, 'data': cards}), 200
         
     except Exception as e:
-        writeLog(f"获取卡号列表异常 - error: {str(e)}")
+        logger.error(writeMessage(f"获取卡号列表异常 - error: {str(e)}"))
         return jsonify({'success': False, 'message': str(e)}), 500
     finally:
         db.close()
@@ -158,7 +160,7 @@ def get_bill(bill_id):
     except ValueError as e:
         return jsonify({'success': False, 'message': str(e)}), 404
     except Exception as e:
-        writeLog(f"获取账单详情异常 - bill_id: {bill_id}, error: {str(e)}")
+        logger.error(writeMessage(f"获取账单详情异常 - bill_id: {bill_id}, error: {str(e)}"))
         return jsonify({'success': False, 'message': str(e)}), 500
     finally:
         db.close()
@@ -190,7 +192,7 @@ def update_bill(bill_id):
         return jsonify({'success': False, 'message': str(e)}), 403
     except Exception as e:
         db.rollback()
-        writeLog(f"更新账单异常 - bill_id: {bill_id}, error: {str(e)}")
+        logger.error(writeMessage(f"更新账单异常 - bill_id: {bill_id}, error: {str(e)}"))
         return jsonify({'success': False, 'message': str(e)}), 500
     finally:
         db.close()
@@ -233,12 +235,12 @@ def batch_update_bills():
         
     except ValueError as e:
         db.rollback()
-        writeLog(f"批量更新账单 - ValueError - error: {str(e)}")
+        logger.error(writeMessage(f"批量更新账单 - ValueError - error: {str(e)}"))
         return jsonify({'success': False, 'message': str(e)}), 403
     except Exception as e:
         db.rollback()
-        writeLog(f"批量更新账单异常 - error: {str(e)}")
-        writeLog(f"错误堆栈: {traceback.format_exc()}")
+        logger.error(writeMessage(f"批量更新账单异常 - error: {str(e)}"))
+        logger.error(writeMessage(f"错误堆栈: {traceback.format_exc()}"))
         return jsonify({'success': False, 'message': str(e)}), 500
     finally:
         db.close()
@@ -281,12 +283,12 @@ def batch_create_bills():
         
     except ValueError as e:
         db.rollback()
-        writeLog(f"批量创建账单 - ValueError - error: {str(e)}")
+        logger.error(writeMessage(f"批量创建账单 - ValueError - error: {str(e)}"))
         return jsonify({'success': False, 'message': str(e)}), 403
     except Exception as e:
         db.rollback()
-        writeLog(f"批量创建账单异常 - error: {str(e)}")
-        writeLog(f"错误堆栈: {traceback.format_exc()}")
+        logger.error(writeMessage(f"批量创建账单异常 - error: {str(e)}"))
+        logger.error(writeMessage(f"错误堆栈: {traceback.format_exc()}"))
         return jsonify({'success': False, 'message': str(e)}), 500
     finally:
         db.close()
@@ -313,10 +315,11 @@ def delete_bill(bill_id):
         
     except ValueError as e:
         db.rollback()
+        logger.error(writeMessage(f"删除账单异常 - bill_id: {bill_id}, error: {str(e)}"))
         return jsonify({'success': False, 'message': str(e)}), 403
     except Exception as e:
         db.rollback()
-        writeLog(f"删除账单异常 - bill_id: {bill_id}, error: {str(e)}")
+        logger.error(writeMessage(f"删除账单异常 - bill_id: {bill_id}, error: {str(e)}"))
         return jsonify({'success': False, 'message': str(e)}), 500
     finally:
         db.close()

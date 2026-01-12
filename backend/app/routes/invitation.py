@@ -3,9 +3,11 @@ from flask import Blueprint, request, jsonify
 from app.utils.decorators import jwt_required
 from app.database import SessionLocal
 from app.services import invitation_service
-from app.utils.file_utils import writeLog
+from app.utils.file_utils import writeMessage
+from app.utils.logger import get_logger
 import traceback
 
+logger = get_logger(__name__)
 invitation_bp = Blueprint('invitation', __name__, url_prefix='/api/workspaces')
 
 @invitation_bp.route('/<string:workspace_id>/invitations', methods=['POST'])
@@ -44,8 +46,8 @@ def create_invitation(workspace_id):
         return jsonify({'success': False, 'message': str(e)}), 403
     except Exception as e:
         db.rollback()
-        writeLog(f"创建邀请异常 - workspace_id: {workspace_id}, error: {str(e)}")
-        writeLog(f"错误堆栈: {traceback.format_exc()}")
+        logger.error(writeMessage(f"创建邀请异常 - workspace_id: {workspace_id}, error: {str(e)}"))
+        logger.error(writeMessage(f"错误堆栈: {traceback.format_exc()}"))
         return jsonify({'success': False, 'message': str(e)}), 500
     finally:
         db.close()
@@ -78,8 +80,8 @@ def join_by_invitation():
         return jsonify({'success': False, 'message': str(e)}), 400
     except Exception as e:
         db.rollback()
-        writeLog(f"加入空间异常 - error: {str(e)}")
-        writeLog(f"错误堆栈: {traceback.format_exc()}")
+        logger.error(writeMessage(f"加入空间异常 - error: {str(e)}"))
+        logger.error(writeMessage(f"错误堆栈: {traceback.format_exc()}"))
         return jsonify({'success': False, 'message': str(e)}), 500
     finally:
         db.close()
@@ -107,7 +109,7 @@ def get_invitations(workspace_id):
     except ValueError as e:
         return jsonify({'success': False, 'message': str(e)}), 403
     except Exception as e:
-        writeLog(f"获取邀请列表异常 - workspace_id: {workspace_id}, error: {str(e)}")
+        logger.error(writeMessage(f"获取邀请列表异常 - workspace_id: {workspace_id}, error: {str(e)}"))
         return jsonify({'success': False, 'message': str(e)}), 500
     finally:
         db.close()
@@ -132,10 +134,11 @@ def revoke_invitation(workspace_id, invitation_id):
         
     except ValueError as e:
         db.rollback()
+        logger.error(writeMessage(f"撤销邀请异常 - invitation_id: {invitation_id}, error: {str(e)}"))
         return jsonify({'success': False, 'message': str(e)}), 403
     except Exception as e:
         db.rollback()
-        writeLog(f"撤销邀请异常 - invitation_id: {invitation_id}, error: {str(e)}")
+        logger.error(writeMessage(f"撤销邀请异常 - invitation_id: {invitation_id}, error: {str(e)}"))
         return jsonify({'success': False, 'message': str(e)}), 500
     finally:
         db.close()

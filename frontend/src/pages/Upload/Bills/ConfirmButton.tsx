@@ -36,7 +36,7 @@ export default ({ workspaceId, file_id, selectedRows, bills, handleReset }: Conf
         if (item.type === 'add') {
           adds.push(item)
         } else {
-          updates.push({ ...item, status: 'active' })
+          updates.push({ ...item, status: item.status === 'pending' ? 'active' : item.status })
         }
       })
       const promises = [];

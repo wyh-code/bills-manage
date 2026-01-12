@@ -2,10 +2,12 @@
 import secrets
 from datetime import datetime, timedelta
 from sqlalchemy.orm import Session
-from sqlalchemy import and_
-from app.models import WorkspaceInvitation, InvitationUse, WorkspaceMember, User
+from app.models import Invitation, InvitationUse, WorkspaceMember, User
 from app.services.workspace_service import get_workspace_detail
-from app.utils.file_utils import writeLog
+from app.utils.file_utils import writeMessage
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 def _check_workspace_permission(db: Session, workspace_id: str, openid: str, required_role: str = None) -> tuple:
     """检查用户空间权限"""
@@ -35,7 +37,7 @@ def create_invitation(
     base_url: str
 ) -> dict:
     """
-    创建邀请链接
+    创建工作空间邀请链接
     :param role: 邀请角色 (editor/viewer)
     :param base_url: 前端域名 (如: https://yourdomain.com)
     """
@@ -51,7 +53,7 @@ def create_invitation(
     role_levels = {'owner': 3, 'editor': 2, 'viewer': 1}
     
     if role_levels.get(role, 0) > role_levels.get(user_role, 0):
-        raise ValueError(f'无法创建高于自身权限的邀请，您的角色为: {user_role}')
+        raise ValueError(f'无法创建高于自身权限的邀请,您的角色为: {user_role}')
     
     # 角色有效性校验
     if role not in ['editor', 'viewer']:
@@ -63,10 +65,11 @@ def create_invitation(
     # 设置过期时间（7天）
     expires_at = datetime.now() + timedelta(days=7)
     
-    # 创建邀请记录
-    invitation = WorkspaceInvitation(
-        workspace_id=workspace_id,
+    # 创建邀请记录（type='workspace'）
+    invitation = Invitation(
         token=token,
+        type='workspace',
+        workspace_id=workspace_id,
         role=role,
         created_by_openid=openid,
         expires_at=expires_at,
@@ -82,7 +85,7 @@ def create_invitation(
     # 生成分享链接
     share_url = f"{base_url}/dashboard?join={token}"
     
-    writeLog(f"创建邀请链接成功 - workspace_id: {workspace_id}, role: {role}, creator: {openid}")
+    logger.info(writeMessage(f"创建工作空间邀请成功 - workspace_id: {workspace_id}, role: {role}, creator: {openid}"))
     
     result = invitation.to_dict()
     result['share_url'] = share_url
@@ -91,10 +94,11 @@ def create_invitation(
 
 def join_by_invitation(db: Session, token: str, openid: str) -> dict:
     """通过邀请链接加入空间"""
-    # 查询邀请记录
-    invitation = db.query(WorkspaceInvitation).filter(
-        WorkspaceInvitation.token == token,
-        WorkspaceInvitation.is_deleted == False
+    # 查询邀请记录（只处理workspace类型）
+    invitation = db.query(Invitation).filter(
+        Invitation.token == token,
+        Invitation.type == 'workspace',
+        Invitation.is_deleted == False
     ).first()
     
     if not invitation:
@@ -138,10 +142,11 @@ def join_by_invitation(db: Session, token: str, openid: str) -> dict:
     )
     db.add(member)
     
-    # 记录邀请使用
+    # 记录邀请使用（type='workspace'）
     use_record = InvitationUse(
         invitation_id=invitation.id,
-        member_openid=openid
+        user_openid=openid,
+        invitation_type='workspace'
     )
     db.add(use_record)
     
@@ -153,7 +158,7 @@ def join_by_invitation(db: Session, token: str, openid: str) -> dict:
     # 获取空间信息
     workspace_detail = get_workspace_detail(db, invitation.workspace_id, openid)
     
-    writeLog(f"用户通过邀请加入空间 - workspace_id: {invitation.workspace_id}, user: {openid}, role: {invitation.role}")
+    logger.info(writeMessage(f"用户通过邀请加入空间 - workspace_id: {invitation.workspace_id}, user: {openid}, role: {invitation.role}"))
     
     return {
         'workspace_id': invitation.workspace_id,
@@ -163,22 +168,23 @@ def join_by_invitation(db: Session, token: str, openid: str) -> dict:
     }
 
 def get_invitations(db: Session, workspace_id: str, openid: str, status: str = None) -> list:
-    """获取空间的邀请列表"""
+    """获取空间的邀请列表（仅workspace类型）"""
     # 权限校验（任何成员都可查看）
     has_permission, _ = _check_workspace_permission(db, workspace_id, openid)
     if not has_permission:
         raise ValueError('无权限访问该空间')
     
-    # 构建查询
-    query = db.query(WorkspaceInvitation).filter(
-        WorkspaceInvitation.workspace_id == workspace_id,
-        WorkspaceInvitation.is_deleted == False
+    # 构建查询（只查询workspace类型）
+    query = db.query(Invitation).filter(
+        Invitation.workspace_id == workspace_id,
+        Invitation.type == 'workspace',
+        Invitation.is_deleted == False
     )
     
     if status:
-        query = query.filter(WorkspaceInvitation.status == status)
+        query = query.filter(Invitation.status == status)
     
-    invitations = query.order_by(WorkspaceInvitation.created_at.desc()).all()
+    invitations = query.order_by(Invitation.created_at.desc()).all()
     
     result = []
     for inv in invitations:
@@ -198,17 +204,17 @@ def get_invitations(db: Session, workspace_id: str, openid: str, status: str = N
         
         members_info = []
         for use in uses:
-            user = db.query(User).filter(User.openid == use.member_openid).first()
+            user = db.query(User).filter(User.openid == use.user_openid).first()
             member = db.query(WorkspaceMember).filter(
                 WorkspaceMember.workspace_id == workspace_id,
-                WorkspaceMember.member_openid == use.member_openid,
+                WorkspaceMember.member_openid == use.user_openid,
                 WorkspaceMember.is_deleted == False
             ).first()
             
             members_info.append({
-                'openid': use.member_openid,
+                'openid': use.user_openid,
                 'nickname': user.nickname if user else None,
-                'joined_at': use.joined_at.isoformat() if use.joined_at else None,
+                'joined_at': use.used_at.isoformat() if use.used_at else None,
                 'is_active': member is not None  # 成员是否仍在空间中
             })
         
@@ -225,11 +231,12 @@ def revoke_invitation(db: Session, workspace_id: str, invitation_id: str, openid
     if not has_permission:
         raise ValueError('无权限执行此操作，需要editor或owner角色')
     
-    # 查询邀请
-    invitation = db.query(WorkspaceInvitation).filter(
-        WorkspaceInvitation.id == invitation_id,
-        WorkspaceInvitation.workspace_id == workspace_id,
-        WorkspaceInvitation.is_deleted == False
+    # 查询邀请（校验workspace类型）
+    invitation = db.query(Invitation).filter(
+        Invitation.id == invitation_id,
+        Invitation.workspace_id == workspace_id,
+        Invitation.type == 'workspace',
+        Invitation.is_deleted == False
     ).first()
     
     if not invitation:
@@ -247,7 +254,7 @@ def revoke_invitation(db: Session, workspace_id: str, invitation_id: str, openid
     for use in uses:
         member = db.query(WorkspaceMember).filter(
             WorkspaceMember.workspace_id == workspace_id,
-            WorkspaceMember.member_openid == use.member_openid,
+            WorkspaceMember.member_openid == use.user_openid,
             WorkspaceMember.is_deleted == False
         ).first()
         
@@ -258,4 +265,4 @@ def revoke_invitation(db: Session, workspace_id: str, invitation_id: str, openid
     
     db.commit()
     
-    writeLog(f"撤销邀请成功 - invitation_id: {invitation_id}, removed_members: {removed_count}")
+    logger.info(writeMessage(f"撤销邀请成功 - invitation_id: {invitation_id}, removed_members: {removed_count}"))

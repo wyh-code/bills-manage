@@ -112,7 +112,7 @@ export default () => {
           <>
             {isPDF(file) && <PDFViewer file={file} />}
             {isExcel(file) && <ExcelView file={file} />}
-            {isImage(file) && <img src={URL.createObjectURL(file)} alt="preview" />}
+            {isImage(file) && <img className={styles.previewImg} src={URL.createObjectURL(file)} alt="preview" />}
           </>
         ) : (
           <Empty style={{ margin: '30vh auto' }} description="暂无预览" />

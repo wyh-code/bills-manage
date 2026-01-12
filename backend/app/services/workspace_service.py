@@ -3,7 +3,10 @@
 from datetime import datetime
 from sqlalchemy.orm import Session
 from app.models import Workspace, WorkspaceMember, User, FileUpload, Bill
-from app.utils.file_utils import writeLog
+from app.utils.file_utils import writeMessage
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 def _get_user_info(db: Session, openid: str) -> dict:
     """获取用户信息（内部方法）"""
@@ -66,7 +69,7 @@ def create_workspace(db: Session, openid: str, name: str, description: str = Non
     db.commit()
     db.refresh(workspace)
     
-    writeLog(f"创建空间成功 - workspace_id: {workspace.id}, owner: {openid}")
+    logger.info(writeMessage(f"创建空间成功 - workspace_id: {workspace.id}, owner: {openid}"))
     return workspace
 
 def get_user_workspaces(db: Session, openid: str, status: str | None = None, role: str | None = None) -> list:
@@ -186,7 +189,7 @@ def update_workspace(db: Session, workspace_id: int, openid: str,
     db.commit()
     db.refresh(workspace)
     
-    writeLog(f"更新空间成功 - workspace_id: {workspace_id}")
+    logger.info(writeMessage(f"更新空间成功 - workspace_id: {workspace_id}"))
     return workspace
 
 def delete_workspace(db: Session, workspace_id: int, openid: str) -> dict:
@@ -235,10 +238,10 @@ def delete_workspace(db: Session, workspace_id: int, openid: str) -> dict:
     
     db.commit()
     
-    writeLog(
+    logger.info(writeMessage(
         f"删除空间成功 - workspace_id: {workspace_id}, "
         f"成员: {member_count}, 文件: {file_count}, 账单: {bill_count}"
-    )
+    ))
     
     return {
         'workspace_id': workspace_id,

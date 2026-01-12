@@ -3,9 +3,11 @@ from flask import Blueprint, request, jsonify, send_file, make_response
 from urllib.parse import quote
 from app.database import SessionLocal
 from app.utils.decorators import jwt_required
-from app.utils.file_utils import allowed_file, writeLog
+from app.utils.file_utils import allowed_file, writeMessage
+from app.utils.logger import get_logger
 from app.services import file_service
 
+logger = get_logger(__name__)
 file_bp = Blueprint("file", __name__, url_prefix="/api/files")
 
 @file_bp.route("/upload", methods=["POST"])
@@ -73,7 +75,7 @@ def upload_file():
 
     except Exception as e:
         db.rollback()
-        writeLog(f"文件上传接口异常 - workspace_id: {workspace_id}, error: {str(e)}")
+        logger.error(writeMessage(f"文件上传接口异常 - workspace_id: {workspace_id}, error: {str(e)}"))
         return jsonify({"success": False, "message": str(e)}), 500
     finally:
         db.close()
@@ -105,13 +107,13 @@ def get_file_progress(file_id):
         }), 200
         
     except ValueError as e:
-        writeLog(f"获取文件进度 - ValueError - file_id: {file_id}, error: {str(e)}")
+        logger.error(writeMessage(f"获取文件进度 - ValueError - file_id: {file_id}, error: {str(e)}"))
         return jsonify({
             'success': False,
             'message': str(e)
         }), 404
     except Exception as e:
-        writeLog(f"获取文件进度异常 - file_id: {file_id}, workspace_id: {workspace_id}, error: {str(e)}")
+        logger.error(writeMessage(f"获取文件进度异常 - file_id: {file_id}, workspace_id: {workspace_id}, error: {str(e)}"))
         return jsonify({
             'success': False,
             'message': str(e)
@@ -164,9 +166,10 @@ def get_file(file_id):
         return response
         
     except ValueError as e:
+        logger.error(writeMessage(f"获取文件异常 - file_id: {file_id}, error: {str(e)}"))
         return jsonify({'success': False, 'message': str(e)}), 404
     except Exception as e:
-        writeLog(f"获取文件异常 - file_id: {file_id}, error: {str(e)}")
+        logger.error(writeMessage(f"获取文件异常 - file_id: {file_id}, error: {str(e)}"))
         return jsonify({'success': False, 'message': str(e)}), 500
     finally:
         db.close()

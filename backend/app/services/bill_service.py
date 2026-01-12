@@ -1,9 +1,12 @@
 """账单管理服务"""
 from datetime import datetime
 from sqlalchemy.orm import Session
-from sqlalchemy import func, distinct
+from sqlalchemy import func
 from app.models import Bill, FileUpload, WorkspaceMember
-from app.utils.file_utils import writeLog
+from app.utils.file_utils import writeMessage
+from app.utils.logger import get_logger
+
+logger = get_logger(__name__)
 
 def _check_workspace_permission(db: Session, workspace_id: str, openid: str, required_role: str = None) -> tuple:
     """
@@ -191,7 +194,7 @@ def batch_confirm_bills(db: Session, workspace_id: str, file_id: str, bill_ids: 
         Bill.is_deleted == False
     ).all()
     
-    writeLog(f"批量确认账单成功 - file_id: {file_id}, updated: {updated_count}, total: {len(bills)}")
+    logger.info(writeMessage(f"批量确认账单成功 - file_id: {file_id}, updated: {updated_count}, total: {len(bills)}"))
     
     return {
         'file_id': file_id,
@@ -269,7 +272,7 @@ def update_bill(db: Session, workspace_id: str, bill_id: str, openid: str, updat
     db.commit()
     db.refresh(bill)
     
-    writeLog(f"账单更新成功 - bill_id: {bill_id}")
+    logger.info(writeMessage(f"账单更新成功 - bill_id: {bill_id}"))
     
     return bill
 
@@ -352,7 +355,7 @@ def batch_update_bills(db: Session, workspace_id: str, updates: list, openid: st
     
     db.commit()
     
-    writeLog(f"批量更新账单 - workspace_id: {workspace_id}, updated: {updated_count}, failed: {failed_count}")
+    logger.info(writeMessage(f"批量更新账单 - workspace_id: {workspace_id}, updated: {updated_count}, failed: {failed_count}"))
     
     return {
         'updated_count': updated_count,
@@ -413,7 +416,7 @@ def batch_create_bills(db: Session, workspace_id: str, bills_data: list, openid:
     
     db.commit()
     
-    writeLog(f"批量创建账单 - workspace_id: {workspace_id}, updated: {created_count}, failed: {failed_count}")
+    logger.info(writeMessage(f"批量创建账单 - workspace_id: {workspace_id}, updated: {created_count}, failed: {failed_count}"))
     
     return {
         'created_count': created_count,
@@ -454,4 +457,4 @@ def delete_bill(db: Session, workspace_id: str, bill_id: str, openid: str) -> No
     
     db.commit()
     
-    writeLog(f"账单删除成功 - bill_id: {bill_id}")
+    logger.info(writeMessage(f"账单删除成功 - bill_id: {bill_id}"))

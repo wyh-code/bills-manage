@@ -1,21 +1,28 @@
+from .base import BaseModel, Base
 from .user import User
 from .workspace import Workspace
 from .workspace_member import WorkspaceMember
 from .file_upload import FileUpload
 from .bill import Bill
-from .workspace_invitation import WorkspaceInvitation
+from .invitation import Invitation
 from .invitation_use import InvitationUse
+from .permission import Permission
+from .user_permission import UserPermission
 from .notification import Notification
 from .notification_types import NotificationType, NotificationPriority
 
 __all__ = [
+    'BaseModel',
+    'Base',
     'User', 
     'Workspace', 
     'WorkspaceMember', 
     'FileUpload', 
     'Bill', 
-    'WorkspaceInvitation',
+    'Invitation',
     'InvitationUse',
+    'Permission',
+    'UserPermission',
     'Notification',
     'NotificationType',
     'NotificationPriority'
