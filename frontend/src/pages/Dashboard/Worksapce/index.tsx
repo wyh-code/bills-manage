@@ -57,6 +57,7 @@ export default ({ joined }) => {
     workspaceApi.update(newWorkspace.id, newWorkspace).then(res => {
       fetchWorkspace();
       setOpen(false);
+      form.resetFields();
     }).catch((error: any) => {
       message.error(error.message)
     }).finally(() => setSpinning(false))

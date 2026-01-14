@@ -81,7 +81,7 @@ export const checkFileTypes = (files: File[]) => {
 };
 
 export const formateTime = (time: any, bool?) => {
-  const formatStr = `YYYY-MM-DD${bool?' HH:mm:ss':''}`
+  const formatStr = `YYYY-MM-DD${bool ? ' HH:mm:ss' : ''}`
   return dayjs(time).format(formatStr)
 }
 
@@ -124,4 +124,18 @@ export const getUrlParams = (key?: string, url: string = window.location.href): 
     }
     return {};
   }
+}
+
+export const getTotalCount = (list) => {
+  const totalCount: any = {};
+  list.forEach(row => {
+    if (row.amount_cny) {
+      totalCount.CNY = totalCount.CNY || 0;
+      totalCount.CNY += row.amount_cny
+    } else {
+      totalCount[row.currency] = totalCount[row.currency] || 0;
+      totalCount[row.currency] += row.amount_foreign
+    }
+  })
+  return Object.entries(totalCount)
 }

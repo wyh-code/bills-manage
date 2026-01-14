@@ -1,460 +1,502 @@
 """账单管理服务"""
+
 from datetime import datetime
-from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.models import Bill, FileUpload, WorkspaceMember
+from app.database import db_session, db_transaction
+from app.utils.permission_checker import require_workspace_permission
 from app.utils.file_utils import writeMessage
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-def _check_workspace_permission(db: Session, workspace_id: str, openid: str, required_role: str = None) -> tuple:
-    """
-    检查用户是否为空间成员及权限等级
-    :param required_role: 'owner', 'editor', 'viewer' 或 None
-    :return: (has_permission: bool, user_role: str)
-    """
-    member = db.query(WorkspaceMember).filter(
-        WorkspaceMember.workspace_id == workspace_id,
-        WorkspaceMember.member_openid == openid,
-        WorkspaceMember.is_deleted == False
-    ).first()
-    
-    if not member:
-        return False, None
-    
-    if required_role is None:
-        return True, member.role
-    
-    role_levels = {'owner': 3, 'editor': 2, 'viewer': 1}
-    user_level = role_levels.get(member.role, 0)
-    required_level = role_levels.get(required_role, 0)
-    
-    return user_level >= required_level, member.role
 
 def get_bills(
-    db: Session, 
-    openid: str, 
+    openid: str,
     workspace_ids: list = None,
     card_last4_list: list = None,
-    status_list: str = None,
-    start_date: str = None, 
+    status_list: list = None,
+    start_date: str = None,
     end_date: str = None,
     page: int = 1,
-    page_size: int = 20
+    page_size: int = 20,
 ) -> dict:
     """
     分页查询账单列表
-    :param workspace_ids: 空间ID列表（多选）
-    :param card_last4_list: 卡号末四位列表（多选）
-    :param status_list: 账单状态
-    :param start_date: 开始日期 YYYY-MM-DD（基于trade_date）
-    :param end_date: 结束日期 YYYY-MM-DD（基于trade_date）
-    :param page: 页码（从1开始）
-    :param page_size: 每页数量
-    :return: {total, page, page_size, items}
-    """
-    # 获取用户有权限的所有空间
-    members = db.query(WorkspaceMember).filter(
-        WorkspaceMember.member_openid == openid,
-        WorkspaceMember.is_deleted == False
-    ).all()
-    
-    accessible_workspace_ids = [m.workspace_id for m in members]
-    
-    # 构建基础查询
-    query = db.query(Bill).filter(
-        Bill.workspace_id.in_(accessible_workspace_ids),
-        Bill.is_deleted == False
-    )
-    
-    # 筛选：指定空间
-    if workspace_ids:
-        # 确保只查询用户有权限的空间
-        filtered_ids = [wid for wid in workspace_ids if wid in accessible_workspace_ids]
-        if not filtered_ids:
-            return {'total': 0, 'page': page, 'page_size': page_size, 'items': []}
-        query = query.filter(Bill.workspace_id.in_(filtered_ids))
-    
-    # 筛选：卡号
-    if card_last4_list:
-        query = query.filter(Bill.card_last4.in_(card_last4_list))
 
-    # 筛选：状态
-    if status_list:
-        query = query.filter(Bill.status.in_(status_list))
-    
-    # 筛选：日期范围
-    if start_date:
-        try:
-            start_dt = datetime.strptime(start_date, '%Y-%m-%d').date()
-            query = query.filter(Bill.trade_date >= start_dt)
-        except ValueError:
-            pass
-    
-    if end_date:
-        try:
-            end_dt = datetime.strptime(end_date, '%Y-%m-%d').date()
-            query = query.filter(Bill.trade_date <= end_dt)
-        except ValueError:
-            pass
-    
-    # 统计总数
-    total = query.count()
-    
-    # 分页查询
-    offset = (page - 1) * page_size
-    bills = query.order_by(
-        Bill.trade_date.desc(), 
-        Bill.created_at.desc()
-    ).limit(page_size).offset(offset).all()
-    
-    return {
-        'total': total,
-        'page': page,
-        'page_size': page_size,
-        'items': [bill.to_dict() for bill in bills]
-    }
+    Args:
+        openid: 用户openid
+        workspace_ids: 空间ID列表(多选)
+        card_last4_list: 卡号末四位列表(多选)
+        status_list: 账单状态列表
+        start_date: 开始日期 YYYY-MM-DD
+        end_date: 结束日期 YYYY-MM-DD
+        page: 页码(从1开始)
+        page_size: 每页数量
 
-def get_card_list(db: Session, openid: str, workspace_ids: list = None) -> list:
+    Returns:
+        {total, page, page_size, items}
     """
-    获取卡号列表（用于筛选下拉）
-    :param workspace_ids: 可选，指定空间ID列表
-    :return: [{'card_last4': '1234', 'count': 10}, ...]
-    """
-    # 获取用户有权限的所有空间
-    members = db.query(WorkspaceMember).filter(
-        WorkspaceMember.member_openid == openid,
-        WorkspaceMember.is_deleted == False
-    ).all()
-    
-    accessible_workspace_ids = [m.workspace_id for m in members]
-    
-    # 构建查询
-    query = db.query(
-        Bill.card_last4,
-        func.count(Bill.id).label('count')
-    ).filter(
-        Bill.workspace_id.in_(accessible_workspace_ids),
-        Bill.is_deleted == False,
-        Bill.card_last4.isnot(None)  # 排除 null
-    )
-    
-    # 可选：按指定空间筛选
-    if workspace_ids:
-        filtered_ids = [wid for wid in workspace_ids if wid in accessible_workspace_ids]
-        if filtered_ids:
+    with db_session() as db:
+
+        # 获取用户有权限的所有空间
+        members = db.query(WorkspaceMember).filter(
+            WorkspaceMember.member_openid == openid,
+            WorkspaceMember.is_deleted == False,
+        ).all()
+
+        accessible_workspace_ids = [m.workspace_id for m in members]
+
+        # 构建基础查询
+        query = db.query(Bill).filter(
+            Bill.workspace_id.in_(accessible_workspace_ids), Bill.is_deleted == False
+        )
+
+        # 筛选:指定空间
+        if workspace_ids:
+            filtered_ids = [
+                wid for wid in workspace_ids if wid in accessible_workspace_ids
+            ]
+            if not filtered_ids:
+                return {"total": 0, "page": page, "page_size": page_size, "items": []}
             query = query.filter(Bill.workspace_id.in_(filtered_ids))
-    
-    # 分组统计
-    results = query.group_by(Bill.card_last4).order_by(Bill.card_last4).all()
-    
-    return [
-        {'card_last4': card, 'count': count}
-        for card, count in results
-    ]
 
-def batch_confirm_bills(db: Session, workspace_id: str, file_id: str, bill_ids: list, openid: str) -> dict:
+        # 筛选:卡号
+        if card_last4_list:
+            query = query.filter(Bill.card_last4.in_(card_last4_list))
+
+        # 筛选:状态
+        if status_list:
+            query = query.filter(Bill.status.in_(status_list))
+
+        # 筛选:日期范围
+        if start_date:
+            try:
+                start_dt = datetime.strptime(start_date, "%Y-%m-%d").date()
+                query = query.filter(Bill.trade_date >= start_dt)
+            except ValueError:
+                pass
+
+        if end_date:
+            try:
+                end_dt = datetime.strptime(end_date, "%Y-%m-%d").date()
+                query = query.filter(Bill.trade_date <= end_dt)
+            except ValueError:
+                pass
+
+        # 统计总数
+        total = query.count()
+
+        # 分页查询
+        offset = (page - 1) * page_size
+        bills = (
+            query.order_by(Bill.trade_date.desc(), Bill.created_at.desc())
+            .limit(page_size)
+            .offset(offset)
+            .all()
+        )
+
+        return {
+            "total": total,
+            "page": page,
+            "page_size": page_size,
+            "items": [bill.to_dict() for bill in bills],
+        }
+
+
+def get_card_list(openid: str, workspace_ids: list = None) -> list:
     """
-    批量确认账单（pending → active）
-    :param bill_ids: 要确认的账单ID列表
+    获取卡号列表(用于筛选下拉)
+
+    Args:
+        openid: 用户openid
+        workspace_ids: 可选,指定空间ID列表
+
+    Returns:
+        [{'card_last4': '1234', 'count': 10}, ...]
     """
-    # 校验权限（需要editor及以上）
-    has_permission, user_role = _check_workspace_permission(db, workspace_id, openid, required_role='editor')
-    if not has_permission:
-        raise ValueError('无权限执行此操作，需要editor或owner角色')
-    
-    # 获取文件记录
-    file_record = db.query(FileUpload).filter(
-        FileUpload.id == file_id,
-        FileUpload.workspace_id == workspace_id,
-        FileUpload.is_deleted == False
-    ).first()
-    
-    if not file_record:
-        raise ValueError('文件记录不存在')
-    
-    # 批量更新账单状态
-    updated_count = db.query(Bill).filter(
-        Bill.id.in_(bill_ids),
-        Bill.file_upload_id == file_id,
-        Bill.workspace_id == workspace_id,
-        Bill.is_deleted == False,
-        Bill.status == 'pending'    # 只更新 pending 状态的
-    ).update(
-        {'status': 'active'},
-        synchronize_session=False
-    )
-    
-    db.commit()
-    
-    # 获取更新后的账单列表
-    bills = db.query(Bill).filter(
-        Bill.id.in_(bill_ids),
-        Bill.is_deleted == False
-    ).all()
-    
-    logger.info(writeMessage(f"批量确认账单成功 - file_id: {file_id}, updated: {updated_count}, total: {len(bills)}"))
-    
-    return {
-        'file_id': file_id,
-        'bills_count': len(bills),
-        'updated_count': updated_count,
-        'bills': [bill.to_dict() for bill in bills]
-    }
+    with db_session() as db:
 
-def get_bill_detail(db: Session, workspace_id: str, bill_id: str, openid: str) -> dict:
-    """获取单条账单详情"""
-    has_permission, _ = _check_workspace_permission(db, workspace_id, openid)
-    if not has_permission:
-        raise ValueError('无权限访问该空间')
-    
-    bill = db.query(Bill).filter(
-        Bill.id == bill_id,
-        Bill.workspace_id == workspace_id,
-        Bill.is_deleted == False
-    ).first()
-    
-    if not bill:
-        raise ValueError('账单不存在')
-    
-    return bill.to_dict()
+        # 获取用户有权限的所有空间
+        members = db.query(WorkspaceMember).filter(
+            WorkspaceMember.member_openid == openid,
+            WorkspaceMember.is_deleted == False,
+        ).all()
 
-def update_bill(db: Session, workspace_id: str, bill_id: str, openid: str, update_data: dict) -> Bill:
+        accessible_workspace_ids = [m.workspace_id for m in members]
+
+        # 构建查询
+        query = db.query(Bill.card_last4, func.count(Bill.id).label("count")).filter(
+            Bill.workspace_id.in_(accessible_workspace_ids),
+            Bill.is_deleted == False,
+            Bill.card_last4.isnot(None),
+        )
+
+        # 可选:按指定空间筛选
+        if workspace_ids:
+            filtered_ids = [
+                wid for wid in workspace_ids if wid in accessible_workspace_ids
+            ]
+            if filtered_ids:
+                query = query.filter(Bill.workspace_id.in_(filtered_ids))
+
+        # 分组统计
+        results = query.group_by(Bill.card_last4).order_by(Bill.card_last4).all()
+
+        return [{"card_last4": card, "count": count} for card, count in results]
+
+
+def batch_confirm_bills(workspace_id: str, file_id: str, bill_ids: list, openid: str) -> dict:
+    """
+    批量确认账单(pending → active)
+
+    Args:
+        workspace_id: 空间ID
+        file_id: 文件ID
+        bill_ids: 要确认的账单ID列表
+        openid: 操作用户openid
+
+    Returns:
+        {file_id, bills_count, updated_count, bills}
+    """
+    # 校验权限(需要editor及以上)
+    require_workspace_permission(workspace_id, openid, required_role="editor")
+
+    with db_transaction() as db:
+        # 获取文件记录
+        file_record = db.query(FileUpload).filter(
+            FileUpload.id == file_id,
+            FileUpload.workspace_id == workspace_id,
+            FileUpload.is_deleted == False,
+        ).first()
+
+        if not file_record:
+            raise ValueError("文件记录不存在")
+
+        # 批量更新账单状态
+        updated_count = db.query(Bill).filter(
+            Bill.id.in_(bill_ids),
+            Bill.file_upload_id == file_id,
+            Bill.workspace_id == workspace_id,
+            Bill.is_deleted == False,
+            Bill.status == "pending",
+        ).update({"status": "active", 'updated_at': datetime.now() }, synchronize_session=False)
+
+        # 获取更新后的账单列表
+        bills = db.query(Bill).filter(Bill.id.in_(bill_ids), Bill.is_deleted == False).all()
+
+        logger.info(
+            writeMessage(
+                f"批量确认账单成功 - file_id: {file_id}, "
+                f"updated: {updated_count}, total: {len(bills)}"
+            )
+        )
+
+        return {
+            "file_id": file_id,
+            "bills_count": len(bills),
+            "updated_count": updated_count,
+            "bills": [bill.to_dict() for bill in bills],
+        }
+
+
+def get_bill_detail(workspace_id: str, bill_id: str, openid: str) -> dict:
+    """获取单个账单详情"""
+    # 校验权限
+    require_workspace_permission(workspace_id, openid)
+
+    with db_session() as db:
+        bill = db.query(Bill).filter(
+            Bill.id == bill_id,
+            Bill.workspace_id == workspace_id,
+            Bill.is_deleted == False,
+        ).first()
+
+        if not bill:
+            raise ValueError("账单不存在")
+
+        return bill.to_dict()
+
+
+def update_bill(workspace_id: str, bill_id: str, openid: str, update_data: dict):
     """更新账单"""
-    has_permission, _ = _check_workspace_permission(db, workspace_id, openid, required_role='editor')
-    if not has_permission:
-        raise ValueError('无权限执行此操作，需要editor或owner角色')
-    
-    bill = db.query(Bill).filter(
-        Bill.id == bill_id,
-        Bill.workspace_id == workspace_id,
-        Bill.is_deleted == False
-    ).first()
-    
-    if not bill:
-        raise ValueError('账单不存在')
-    
-    # 更新字段
-    if 'bank' in update_data:
-        bill.bank = update_data['bank']
-    
-    if 'trade_date' in update_data and update_data['trade_date']:
-        try:
-            bill.trade_date = datetime.strptime(update_data['trade_date'], '%Y-%m-%d').date()
-        except ValueError:
-            pass
-    
-    if 'record_date' in update_data and update_data['record_date']:
-        try:
-            bill.record_date = datetime.strptime(update_data['record_date'], '%Y-%m-%d').date()
-        except ValueError:
-            pass
-    
-    if 'description' in update_data:
-        bill.description = update_data['description']
-    
-    if 'amount_cny' in update_data:
-        bill.amount_cny = update_data['amount_cny']
-    
-    if 'card_last4' in update_data:
-        bill.card_last4 = update_data['card_last4']
-    
-    if 'amount_foreign' in update_data:
-        bill.amount_foreign = update_data['amount_foreign']
-    
-    if 'currency' in update_data:
-        bill.currency = update_data['currency']
-    
-    if 'status' in update_data:
-        bill.status = update_data['status']
-    
-    db.commit()
-    db.refresh(bill)
-    
-    logger.info(writeMessage(f"账单更新成功 - bill_id: {bill_id}"))
-    
-    return bill
+    # 校验权限(需要editor及以上)
+    require_workspace_permission(workspace_id, openid, required_role="editor")
 
-def batch_update_bills(db: Session, workspace_id: str, updates: list, openid: str) -> dict:
+    with db_transaction() as db:
+        bill = db.query(Bill).filter(
+            Bill.id == bill_id,
+            Bill.workspace_id == workspace_id,
+            Bill.is_deleted == False,
+        ).first()
+
+        if not bill:
+            raise ValueError("账单不存在")
+
+        # 更新字段
+        if "bank" in update_data:
+            bill.bank = update_data["bank"]
+
+        if "trade_date" in update_data and update_data["trade_date"]:
+            try:
+                bill.trade_date = datetime.strptime(
+                    update_data["trade_date"], "%Y-%m-%d"
+                ).date()
+            except ValueError:
+                pass
+
+        if "record_date" in update_data and update_data["record_date"]:
+            try:
+                bill.record_date = datetime.strptime(
+                    update_data["record_date"], "%Y-%m-%d"
+                ).date()
+            except ValueError:
+                pass
+
+        if "description" in update_data:
+            bill.description = update_data["description"]
+
+        if "amount_cny" in update_data:
+            bill.amount_cny = update_data["amount_cny"]
+
+        if "card_last4" in update_data:
+            bill.card_last4 = update_data["card_last4"]
+
+        if "amount_foreign" in update_data:
+            bill.amount_foreign = update_data["amount_foreign"]
+
+        if "currency" in update_data:
+            bill.currency = update_data["currency"]
+
+        if "status" in update_data:
+            bill.status = update_data["status"]
+
+        bill.updated_at = datetime.now()
+        logger.info(writeMessage(f"账单更新成功 - bill_id: {bill_id}"))
+
+        return bill
+
+
+def batch_update_bills(workspace_id: str, updates: list, openid: str) -> dict:
     """
     批量更新账单
-    :param updates: [{'bill_id': 'xxx', 'data': {...}}, ...]
-    :return: {updated_count, failed_count, results}
+
+    Args:
+        workspace_id: 空间ID
+        updates: [{'id': 'xxx', ...更新字段}, ...]
+        openid: 操作用户openid
+
+    Returns:
+        {updated_count, failed_count, results}
     """
-    # 校验权限（需要editor及以上）
-    has_permission, user_role = _check_workspace_permission(db, workspace_id, openid, required_role='editor')
-    if not has_permission:
-        raise ValueError('无权限执行此操作，需要editor或owner角色')
-    
+    # 校验权限(需要editor及以上)
+    require_workspace_permission(workspace_id, openid, required_role="editor")
+
     updated_count = 0
     failed_count = 0
     results = []
-    
-    for item in updates:
-        id = item.get('id')
-        
-        if not id:
-            failed_count += 1
-            results.append({'id': None, 'success': False, 'message': 'id不能为空'})
-            continue
-        
-        try:
-            # 获取账单
-            bill = db.query(Bill).filter(
-                Bill.id == id,
-                Bill.workspace_id == workspace_id,
-                Bill.is_deleted == False
-            ).first()
-            
-            if not bill:
+
+    with db_transaction() as db:
+
+        now = datetime.now()
+
+        for item in updates:
+            bill_id = item.get("id")
+
+            if not bill_id:
                 failed_count += 1
-                results.append({'id': id, 'success': False, 'message': '账单不存在'})
+                results.append({"id": None, "success": False, "message": "id不能为空"})
                 continue
-            
-            # 更新字段
-            if 'bank' in item:
-                bill.bank = item['bank']
-            
-            if 'trade_date' in item and item['trade_date']:
-                try:
-                    bill.trade_date = datetime.strptime(item['trade_date'], '%Y-%m-%d').date()
-                except ValueError:
-                    pass
-            
-            if 'record_date' in item and item['record_date']:
-                try:
-                    bill.record_date = datetime.strptime(item['record_date'], '%Y-%m-%d').date()
-                except ValueError:
-                    pass
-            
-            if 'description' in item:
-                bill.description = item['description']
-            
-            if 'amount_cny' in item:
-                bill.amount_cny = item['amount_cny']
-            
-            if 'card_last4' in item:
-                bill.card_last4 = item['card_last4']
-            
-            if 'amount_foreign' in item:
-                bill.amount_foreign = item['amount_foreign']
-            
-            if 'currency' in item:
-                bill.currency = item['currency']
-            
-            if 'status' in item:
-                bill.status = item['status']
-            
-            updated_count += 1
-            results.append({'bill_id': id, 'success': True})
-            
-        except Exception as e:
-            failed_count += 1
-            results.append({'bill_id': id, 'success': False, 'message': str(e)})
-    
-    db.commit()
-    
-    logger.info(writeMessage(f"批量更新账单 - workspace_id: {workspace_id}, updated: {updated_count}, failed: {failed_count}"))
-    
+
+            try:
+                # 获取账单
+                bill = db.query(Bill).filter(
+                    Bill.id == bill_id,
+                    Bill.workspace_id == workspace_id,
+                    Bill.is_deleted == False,
+                ).first()
+
+                if not bill:
+                    failed_count += 1
+                    results.append({"id": bill_id, "success": False, "message": "账单不存在"})
+                    continue
+
+                # 更新字段
+                if "bank" in item:
+                    bill.bank = item["bank"]
+
+                if "trade_date" in item and item["trade_date"]:
+                    try:
+                        bill.trade_date = datetime.strptime(
+                            item["trade_date"], "%Y-%m-%d"
+                        ).date()
+                    except ValueError:
+                        pass
+
+                if "record_date" in item and item["record_date"]:
+                    try:
+                        bill.record_date = datetime.strptime(
+                            item["record_date"], "%Y-%m-%d"
+                        ).date()
+                    except ValueError:
+                        pass
+
+                if "description" in item:
+                    bill.description = item["description"]
+
+                if "amount_cny" in item:
+                    bill.amount_cny = item["amount_cny"]
+
+                if "card_last4" in item:
+                    bill.card_last4 = item["card_last4"]
+
+                if "amount_foreign" in item:
+                    bill.amount_foreign = item["amount_foreign"]
+
+                if "currency" in item:
+                    bill.currency = item["currency"]
+
+                if "status" in item:
+                    bill.status = item["status"]
+
+                bill.updated_at = now
+                updated_count += 1
+                results.append({"bill_id": bill_id, "success": True})
+
+            except Exception as e:
+                failed_count += 1
+                results.append({"bill_id": bill_id, "success": False, "message": str(e)})
+
+    logger.info(
+        writeMessage(
+            f"批量更新账单 - workspace_id: {workspace_id}, "
+            f"updated: {updated_count}, failed: {failed_count}"
+        )
+    )
+
     return {
-        'updated_count': updated_count,
-        'failed_count': failed_count,
-        'results': results
+        "updated_count": updated_count,
+        "failed_count": failed_count,
+        "results": results,
     }
 
-def batch_create_bills(db: Session, workspace_id: str, bills_data: list, openid: str) -> dict:
+
+def batch_create_bills(workspace_id: str, bills_data: list, openid: str) -> dict:
     """
-    批量更新账单
-    :param bills_data: [{'bill_id': 'xxx', 'data': {...}}, ...]
-    :return: {updated_count, failed_count, results}
+    批量创建账单
+
+    Args:
+        workspace_id: 空间ID
+        bills_data: [{账单字段}, ...]
+        openid: 操作用户openid
+
+    Returns:
+        {created_count, failed_count, results}
     """
-    # 校验权限（需要editor及以上）
-    has_permission, user_role = _check_workspace_permission(db, workspace_id, openid, required_role='editor')
-    if not has_permission:
-        raise ValueError('无权限执行此操作，需要editor或owner角色')
-    
+    # 校验权限(需要editor及以上)
+    require_workspace_permission(workspace_id, openid, required_role="editor")
+
     created_count = 0
     failed_count = 0
     results = []
-    
-    # 创建账单
-    for bill_item in bills_data:
-        try:
-            if bill_item['trade_date']:
-                try:
-                    bill_item['trade_date'] = datetime.strptime(bill_item['trade_date'], '%Y-%m-%d').date()
-                except ValueError:
-                    pass
-            
-            if bill_item['record_date']:
-                try:
-                    bill_item['record_date'] = datetime.strptime(bill_item['record_date'], '%Y-%m-%d').date()
-                except ValueError:
-                    pass
 
-            bill = Bill(
-                file_upload_id=bill_item.get('file_upload_id'),
-                workspace_id=workspace_id,
-                bank=bill_item.get('bank'),
-                trade_date=bill_item.get('trade_date'),
-                record_date=bill_item.get('record_date'),
-                description=bill_item.get('description'),
-                amount_cny=bill_item.get('amount_cny'),
-                card_last4=bill_item.get('card_last4'),
-                amount_foreign=bill_item.get('amount_foreign'),
-                currency=bill_item.get('currency'),
-                raw_line=bill_item.get('raw_line', ''),
-                status=bill_item.get('status')
-            )
-            db.add(bill)
-            created_count += 1
-            results.append({'bill_id': bill_item.get('id', ''), 'success': True})
-        except Exception as e:
-            failed_count += 1
-            results.append({'bill_id': bill_item.get('id', ''), 'success': False, 'message': str(e)})
-    
-    db.commit()
-    
-    logger.info(writeMessage(f"批量创建账单 - workspace_id: {workspace_id}, updated: {created_count}, failed: {failed_count}"))
-    
+    with db_transaction() as db:
+        for bill_item in bills_data:
+            try:
+                # 处理日期字段
+                if bill_item.get("trade_date"):
+                    try:
+                        bill_item["trade_date"] = datetime.strptime(
+                            bill_item["trade_date"], "%Y-%m-%d"
+                        ).date()
+                    except ValueError:
+                        bill_item["trade_date"] = None
+
+                if bill_item.get("record_date"):
+                    try:
+                        bill_item["record_date"] = datetime.strptime(
+                            bill_item["record_date"], "%Y-%m-%d"
+                        ).date()
+                    except ValueError:
+                        bill_item["record_date"] = None
+
+                # 创建账单
+                bill = Bill(
+                    file_upload_id=bill_item.get("file_upload_id"),
+                    workspace_id=workspace_id,
+                    bank=bill_item.get("bank"),
+                    trade_date=bill_item.get("trade_date"),
+                    record_date=bill_item.get("record_date"),
+                    description=bill_item.get("description"),
+                    amount_cny=bill_item.get("amount_cny"),
+                    card_last4=bill_item.get("card_last4"),
+                    amount_foreign=bill_item.get("amount_foreign"),
+                    currency=bill_item.get("currency"),
+                    raw_line=bill_item.get("raw_line", ""),
+                    status=bill_item.get("status", "active"),
+                )
+                db.add(bill)
+                created_count += 1
+                results.append({"bill_id": bill_item.get("id", ""), "success": True})
+
+            except Exception as e:
+                failed_count += 1
+                results.append({
+                    "bill_id": bill_item.get("id", ""),
+                    "success": False,
+                    "message": str(e),
+                })
+
+    logger.info(
+        writeMessage(
+            f"批量创建账单 - workspace_id: {workspace_id}, "
+            f"created: {created_count}, failed: {failed_count}"
+        )
+    )
+
     return {
-        'created_count': created_count,
-        'failed_count': failed_count,
-        'results': results
+        "created_count": created_count,
+        "failed_count": failed_count,
+        "results": results,
     }
 
-def delete_bill(db: Session, workspace_id: str, bill_id: str, openid: str) -> None:
-    """删除账单（软删除）"""
-    has_permission, _ = _check_workspace_permission(db, workspace_id, openid, required_role='editor')
-    if not has_permission:
-        raise ValueError('无权限执行此操作，需要editor或owner角色')
-    
-    bill = db.query(Bill).filter(
-        Bill.id == bill_id,
-        Bill.workspace_id == workspace_id,
-        Bill.is_deleted == False
-    ).first()
-    
-    if not bill:
-        raise ValueError('账单不存在')
-    
-    bill.is_deleted = True
-    bill.deleted_at = datetime.now()
-    
-    # 更新关联文件的账单数量
-    file_record = db.query(FileUpload).filter(
-        FileUpload.id == bill.file_upload_id,
-        FileUpload.is_deleted == False
-    ).first()
-    
-    if file_record:
-        valid_bills_count = db.query(Bill).filter(
-            Bill.file_upload_id == file_record.id,
-            Bill.is_deleted == False
-        ).count()
-        file_record.bills_count = valid_bills_count
-    
-    db.commit()
-    
-    logger.info(writeMessage(f"账单删除成功 - bill_id: {bill_id}"))
+
+def delete_bill(workspace_id: str, bill_id: str, openid: str) -> None:
+    """删除账单(软删除)"""
+    # 校验权限(需要editor及以上)
+    require_workspace_permission(workspace_id, openid, required_role="editor")
+
+    with db_transaction() as db:
+        bill = db.query(Bill).filter(
+            Bill.id == bill_id,
+            Bill.workspace_id == workspace_id,
+            Bill.is_deleted == False,
+        ).first()
+
+        if not bill:
+            raise ValueError("账单不存在")
+
+        # 软删除账单
+        now = datetime.now()
+        bill.is_deleted = True
+        bill.deleted_at = now 
+        bill.updated_at = now
+
+        # 更新关联文件的账单数量
+        file_record = (
+            db.query(FileUpload)
+            .filter(
+                FileUpload.id == bill.file_upload_id, FileUpload.is_deleted == False
+            )
+            .first()
+        )
+
+        if file_record:
+            valid_bills_count = (
+                db.query(Bill)
+                .filter(Bill.file_upload_id == file_record.id, Bill.is_deleted == False)
+                .count()
+            )
+            file_record.bills_count = valid_bills_count
+
+        logger.info(writeMessage(f"账单删除成功 - bill_id: {bill_id}"))

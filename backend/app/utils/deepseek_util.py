@@ -1,5 +1,5 @@
 """DeepSeek API 工具"""
-import os
+
 import json
 from openai import OpenAI
 from dotenv import load_dotenv
@@ -13,18 +13,18 @@ load_dotenv()
 
 # 初始化 DeepSeek 客户端
 deepseek_client = OpenAI(
-    api_key=os.getenv('DEEPSEEK_API_KEY'),
-    base_url=os.getenv('DEEPSEEK_BASE_URL', 'https://api.deepseek.com')
+    api_key=Config.DEEPSEEK_API_KEY, base_url=Config.DEEPSEEK_BASE_URL
 )
 
 # 输出格式
-ROW_FORMAT = '[发卡行,交易日,记账日,交易摘要,人民币金额,卡号末四位,交易地金额,记账币种]'
+ROW_FORMAT = "[发卡行,交易日,记账日,交易摘要,人民币金额,卡号末四位,交易地金额,记账币种]"
+
 
 def refine_bill_content(content, original_filename):
     """使用 DeepSeek 提纯账单信息"""
     try:
         logger.info(writeMessage(f"开始调用 DeepSeek API 提纯：{original_filename}"))
-        
+
         prompt = f"""请分析以下账单内容，提取符合条件的账单信息。
 
 提取规则：
@@ -54,32 +54,32 @@ def refine_bill_content(content, original_filename):
 {content}
 
 请严格按照格式输出，不要添加任何解释文字。"""
-        
+
         response = deepseek_client.chat.completions.create(
             model=Config.DEEPSEEK_CHAT_MODEL,
             messages=[
                 {
-                    "role": "system", 
-                    "content": "你是一个专业的财务账单分析助手，擅长从账单中提取关键信息。你必须严格按照指定格式输出，不添加任何额外说明。"
+                    "role": "system",
+                    "content": "你是一个专业的财务账单分析助手，擅长从账单中提取关键信息。你必须严格按照指定格式输出，不添加任何额外说明。",
                 },
-                {
-                    "role": "user", 
-                    "content": prompt
-                }
+                {"role": "user", "content": prompt},
             ],
             temperature=0.3,
-            max_tokens=2000
+            max_tokens=2000,
         )
-        
+
         refined_content = response.choices[0].message.content
         usage = response.usage
-        logger.info(writeMessage(f"DeepSeek API 调用成功 - tokens: {usage.total_tokens}"))
-        
+        logger.info(
+            writeMessage(f"DeepSeek API 调用成功 - tokens: {usage.total_tokens}")
+        )
+
         return refined_content
-        
+
     except Exception as e:
         logger.error(writeMessage(f"DeepSeek API 调用失败：{str(e)}"))
         return f"[DeepSeek 提纯失败: {str(e)}]\n\n原始内容：\n{content}"
+
 
 def convert_bills_to_json(refined_content):
     """
@@ -87,8 +87,12 @@ def convert_bills_to_json(refined_content):
     让 DeepSeek 负责格式转换，避免本地解析错误
     """
     try:
-        logger.info(writeMessage(f"开始调用 DeepSeek 转换为 JSON，内容长度：{len(refined_content)}"))
-        
+        logger.info(
+            writeMessage(
+                f"开始调用 DeepSeek 转换为 JSON，内容长度：{len(refined_content)}"
+            )
+        )
+
         prompt = f"""请将以下账单数据转换为 JSON 格式。
 
 输入数据格式说明：
@@ -117,27 +121,26 @@ def convert_bills_to_json(refined_content):
 
 请输出纯 JSON，示例格式：
 {{"bills": [{{"bank": "招商银行", "trade_date": "2024-11-15", "record_date": "2024-11-16", "description": "AMAZON购物", "amount_cny": "", "card_last4": "1234", "amount_foreign": 99.99, "currency": "USD", "raw_line": {ROW_FORMAT}}}]}}"""
-        
+
         response = deepseek_client.chat.completions.create(
             model=Config.DEEPSEEK_CHAT_MODEL,
             messages=[
                 {
-                    "role": "system", 
-                    "content": "你是一个数据格式转换专家，擅长将文本数据转换为结构化 JSON。你必须只返回纯 JSON 格式，不添加任何解释或 markdown 标记。"
+                    "role": "system",
+                    "content": "你是一个数据格式转换专家，擅长将文本数据转换为结构化 JSON。你必须只返回纯 JSON 格式，不添加任何解释或 markdown 标记。",
                 },
-                {
-                    "role": "user", 
-                    "content": prompt
-                }
+                {"role": "user", "content": prompt},
             ],
             temperature=0.1,  # 降低温度，提高准确性
-            max_tokens=4000
+            max_tokens=4000,
         )
-        
+
         json_content_str = response.choices[0].message.content.strip()
         usage = response.usage
-        logger.info(writeMessage(f"DeepSeek JSON 转换成功 - tokens: {usage.total_tokens}"))
-        
+        logger.info(
+            writeMessage(f"DeepSeek JSON 转换成功 - tokens: {usage.total_tokens}")
+        )
+
         # 清理可能的 markdown 标记
         if json_content_str.startswith("```json"):
             json_content_str = json_content_str[7:]
@@ -145,12 +148,12 @@ def convert_bills_to_json(refined_content):
             json_content_str = json_content_str[3:]
         if json_content_str.endswith("```"):
             json_content_str = json_content_str[:-3]
-        
+
         json_content_str = json_content_str.strip()
         logger.info(writeMessage(f"清理后的 JSON 字符：{json_content_str}"))
         json_content_data = json.loads(json_content_str)
-        return json_content_data.get('bills', [])
-        
+        return json_content_data.get("bills", [])
+
     except Exception as e:
         logger.error(writeMessage(f"DeepSeek JSON 转换失败：{str(e)}"))
         # 返回空的 JSON 结构

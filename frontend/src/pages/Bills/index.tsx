@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Table, Form, Select, Row, Col, DatePicker, Button, message, Spin, Modal } from 'antd';
+import { Table, Form, Select, Row, Col, DatePicker, Button, message, Spin, Modal, Typography } from 'antd';
 import { billApi } from '@/api/bill';
 import { workspaceApi } from "@/api/workspace";
+import { getTotalCount } from '@/utils/utils';
 import { getColumns } from './getColumns'
 import styles from './index.module.less';
+
+const { Text } = Typography;
 
 export default () => {
   const [datasource, setDatasource] = useState([]);
@@ -56,10 +59,11 @@ export default () => {
   const onConfirm = () => {
     billApi.batchUpdate({
       workspace_id: selectedRows[0].workspace_id,
-      updates: selectedRows.map(item => ({ ...item, status: 'payed' }))
+      data: selectedRows.map(item => ({ ...item, status: 'payed' }))
     }).then(res => {
       setVisible(false);
-      setSearchParams({ ...searchParams })
+      setSearchParams({ ...searchParams });
+      setSelectedRows([]);
     })
   }
 
@@ -68,16 +72,18 @@ export default () => {
       values.start_date = values.date[0].format('YYYY-MM-DD');
       values.end_date = values.date[1].format('YYYY-MM-DD');
     }
-    console.log({ ...searchParams, ...values })
-    setSearchParams({ ...searchParams, ...values })
+    setSearchParams({ ...searchParams, ...values });
+    setSelectedRows([]);
   }
 
   const onReset = () => {
-    setSearchParams({ page: 1, page_size: 10 })
+    setSearchParams({ page: 1, page_size: 10 });
+    setSelectedRows([]);
   }
 
   const onPaginationChange = (page: number) => {
-    setSearchParams({ ...searchParams, page })
+    setSearchParams({ ...searchParams, page });
+    setSelectedRows([]);
   }
 
   useEffect(() => {
@@ -88,6 +94,8 @@ export default () => {
   useEffect(() => {
     fetchDatasource();
   }, [fetchDatasource])
+
+  const totalCount = getTotalCount(selectedRows)
 
   return (
     <div className={styles.bills}>
@@ -119,11 +127,11 @@ export default () => {
                   mode="multiple"
                   placeholder="请选择状态"
                   options={[
-                    { label: '待确定', value:'pending' },
-                    { label: '已确定', value:'active' },
-                    { label: '已修改', value:'modified' },
-                    { label: '已支付', value:'payed' },
-                    { label: '已失效', value:'inactive' },
+                    { label: '待确定', value: 'pending' },
+                    { label: '已确定', value: 'active' },
+                    { label: '已修改', value: 'modified' },
+                    { label: '已支付', value: 'payed' },
+                    { label: '已失效', value: 'inactive' },
                   ]}
                 />
               </Form.Item>
@@ -173,6 +181,17 @@ export default () => {
           </div>
         )}
       >
+        <div className={styles.totalCount}>
+          {
+            totalCount.length ? (
+              totalCount.map(([currency, count]) => (
+                <Text strong key={currency}>
+                  {currency}: {(count as number).toFixed(2)}
+                </Text>
+              ))
+            ) : null
+          }
+        </div>
         <div className={styles.confirm}>
           {
             selectedRows.map(item => (

@@ -2,9 +2,9 @@
 import os
 import threading
 from datetime import datetime
-from sqlalchemy.orm import Session
-from app.models import FileUpload, Bill, WorkspaceMember
-from app.database import SessionLocal
+from app.models import FileUpload, Bill
+from app.database import SessionLocal, db_session, db_transaction
+from app.utils.permission_checker import require_workspace_permission
 from app.utils.deepseek_util import refine_bill_content, convert_bills_to_json
 from app.utils.logger import get_logger
 from app.utils.file_utils import (
@@ -17,6 +17,7 @@ from app.utils.file_utils import (
 )
 
 logger = get_logger(__name__)
+
 
 def clean_bill_data(bill: dict) -> dict:
     """
@@ -66,60 +67,35 @@ def clean_bill_data(bill: dict) -> dict:
     
     return cleaned
 
-def check_workspace_permission(db: Session, workspace_id: str, openid: str, required_role: str = None) -> tuple:
-    """
-    检查用户是否为空间成员及权限等级
-    :param db: 数据库会话（外部传入）
-    :param required_role: 'owner', 'editor', 'viewer' 或 None
-    :return: (has_permission: bool, user_role: str)
-    """
 
-    member = db.query(WorkspaceMember).filter(
-        WorkspaceMember.workspace_id == workspace_id,
-        WorkspaceMember.member_openid == openid,
-        WorkspaceMember.is_deleted == False
-    ).first()
-    
-    if not member:
-        return False, None
-    
-    # 如果不需要特定角色，只要是成员即可
-    if required_role is None:
-        return True, member.role
-    
-    # 角色等级: owner > editor > viewer
-    role_levels = {'owner': 3, 'editor': 2, 'viewer': 1}
-    user_level = role_levels.get(member.role, 0)
-    required_level = role_levels.get(required_role, 0)
-    
-    return user_level >= required_level, member.role
-
-def check_file_duplicate(db: Session, workspace_id: str, file_hash: str) -> tuple:
+def check_file_duplicate(workspace_id: str, file_hash: str) -> tuple:
     """
-    检查文件是否重复
+    检查文件是否重复（独立session）
     :return: (is_duplicate: bool, file_record: FileUpload | None, bills: list)
     """
-    file_record = db.query(FileUpload).filter(
-        FileUpload.workspace_id == workspace_id,
-        FileUpload.file_hash == file_hash,
-        FileUpload.is_deleted == False
-    ).first()
-    
-    if not file_record:
-        return False, None, []
-    
-    if file_record and file_record.status == 'failed':
-        return False, None, []
-    
-    # 获取关联的账单
-    bills = db.query(Bill).filter(
-        Bill.file_upload_id == file_record.id,
-        Bill.is_deleted == False
-    ).all()
-    
-    bills_list = [bill.to_dict() for bill in bills]
-    
-    return True, file_record, bills_list
+    with db_session() as db:
+        file_record = db.query(FileUpload).filter(
+            FileUpload.workspace_id == workspace_id,
+            FileUpload.file_hash == file_hash,
+            FileUpload.is_deleted == False
+        ).first()
+        
+        if not file_record:
+            return False, None, []
+        
+        if file_record.status == 'failed':
+            return False, None, []
+        
+        # 获取关联的账单
+        bills = db.query(Bill).filter(
+            Bill.file_upload_id == file_record.id,
+            Bill.is_deleted == False
+        ).all()
+        
+        bills_list = [bill.to_dict() for bill in bills]
+        
+        return True, file_record, bills_list
+
 
 def process_file_async(file_id: str, workspace_id: str, raw_content: str, original_filename: str):
     """
@@ -138,7 +114,7 @@ def process_file_async(file_id: str, workspace_id: str, raw_content: str, origin
             if refined_content:
                 bills_data_json_list = convert_bills_to_json(refined_content)
                 
-                # 3. 清洗每条账单数据
+                # 清洗每条账单数据
                 bills_data = [clean_bill_data(bill) for bill in bills_data_json_list]
                 
                 logger.info(writeMessage(f"精炼完成 - file_id: {file_id}, bills: {len(bills_data)}"))
@@ -152,6 +128,8 @@ def process_file_async(file_id: str, workspace_id: str, raw_content: str, origin
         if not file_record:
             logger.info(writeMessage(f"文件记录不存在 - file_id: {file_id}"))
             return
+        
+        now = datetime.now()
         
         # 创建账单
         for bill_item in bills_data:
@@ -174,6 +152,7 @@ def process_file_async(file_id: str, workspace_id: str, raw_content: str, origin
         # 更新文件状态
         file_record.bills_count = len(bills_data)
         file_record.status = 'completed'
+        file_record.updated_at = now
         
         db.commit()
         logger.info(writeMessage(f"异步处理完成 - file_id: {file_id}, bills: {len(bills_data)}"))
@@ -187,50 +166,50 @@ def process_file_async(file_id: str, workspace_id: str, raw_content: str, origin
             file_record = db.query(FileUpload).filter(FileUpload.id == file_id).first()
             if file_record:
                 file_record.status = 'failed'
+                file_record.updated_at = datetime.now()
                 db.commit()
         except Exception as update_error:
             logger.error(writeMessage(f"更新失败状态异常 - file_id: {file_id}, error: {str(update_error)}"))
     finally:
-        db.close()  # 确保关闭
+        db.close()
 
-def upload_and_parse_file(db: Session, workspace_id: str, openid: str, file) -> dict:
-    """上传文件并解析（使用外部传入的db）"""
-    try:
-        # 校验权限并获取文件记录
-        has_permission, _ = check_workspace_permission(db, workspace_id, openid, required_role='editor')
-        if not has_permission:
-            raise ValueError('无权限操作该空间')
+
+def upload_and_parse_file(workspace_id: str, openid: str, file) -> dict:
+    """上传文件并解析"""
+    # 权限校验
+    require_workspace_permission(workspace_id, openid, required_role='editor')
     
-        original_filename = file.filename
-        file_ext = get_file_extension(original_filename)
-        
-        # 1. 计算文件hash
-        file_hash = calculate_file_hash(file)
+    original_filename = file.filename
+    file_ext = get_file_extension(original_filename)
+    
+    # 1. 计算文件hash
+    file_hash = calculate_file_hash(file)
 
-        # 2. 检查重复
-        is_duplicate, file_record, bills = check_file_duplicate(db, workspace_id, file_hash)
-        
-        if is_duplicate:
-            logger.info(writeMessage(f"文件重复 - file_hash: {file_hash}, existing_file_id: {file_record.id}"))
-            return {
-                'status': 'duplicate',
-                'data': {
-                    'file_id': file_record.id,
-                    'original_filename': file_record.original_filename,
-                    'file_status': 'completed',
-                    'bills': bills,
-                    'bills_count': len(bills)
-                }
+    # 2. 检查重复
+    is_duplicate, file_record, bills = check_file_duplicate(workspace_id, file_hash)
+    
+    if is_duplicate:
+        logger.info(writeMessage(f"文件重复 - file_hash: {file_hash}, existing_file_id: {file_record.id}"))
+        return {
+            'status': 'duplicate',
+            'data': {
+                'file_id': file_record.id,
+                'original_filename': file_record.original_filename,
+                'file_status': 'completed',
+                'bills': bills,
+                'bills_count': len(bills)
             }
-        
-        # 3. 保存文件
-        saved_path, _, file_size = save_uploaded_file(file, workspace_id, original_filename, file_hash)
-        
-        # 4. 解析文件内容
-        absolute_path = get_absolute_path(saved_path)
-        raw_content = parse_file(absolute_path, file_ext)
+        }
+    
+    # 3. 保存文件
+    saved_path, _, file_size = save_uploaded_file(file, workspace_id, original_filename, file_hash)
+    
+    # 4. 解析文件内容
+    absolute_path = get_absolute_path(saved_path)
+    raw_content = parse_file(absolute_path, file_ext)
 
-        # 5. 创建文件记录（status='processing'）
+    # 5. 创建文件记录（status='processing'）
+    with db_transaction() as db:
         upload_time = int(datetime.now().timestamp() * 1000)
         file_record = FileUpload(
             workspace_id=workspace_id,
@@ -247,102 +226,103 @@ def upload_and_parse_file(db: Session, workspace_id: str, openid: str, file) -> 
         )
         
         db.add(file_record)
-        db.commit()
+        db.flush()
         db.refresh(file_record)
         
         logger.info(writeMessage(f"文件上传成功 - file_id: {file_record.id}, 开始异步精炼"))
         
-        # 6. 启动后台线程
-        thread = threading.Thread(
-            target=process_file_async,
-            args=(file_record.id, workspace_id, raw_content, original_filename)
-        )
-        thread.daemon = True
-        thread.start()
-        
-        return {
-            'status': 'success',
-            'data': {
-                'file_id': file_record.id,
-                'original_filename': file_record.original_filename,
-                'file_size': file_record.file_size,
-                'file_status': 'processing',
-                'raw_content': file_record.raw_content,
-                'upload_time': file_record.upload_time
-            }
+        file_id = file_record.id
+    
+    # 6. 启动后台线程
+    thread = threading.Thread(
+        target=process_file_async,
+        args=(file_id, workspace_id, raw_content, original_filename)
+    )
+    thread.daemon = True
+    thread.start()
+    
+    return {
+        'status': 'success',
+        'data': {
+            'file_id': file_id,
+            'original_filename': original_filename,
+            'file_size': file_size,
+            'file_status': 'processing',
+            'raw_content': raw_content,
+            'upload_time': upload_time
         }
-    except Exception as e:
-        raise
-
-def get_file_progress(db: Session, workspace_id: str, file_id: str, openid: str) -> dict:
-    """获取文件处理进度（使用外部传入的db）"""
-    # 校验权限并获取文件记录
-    has_permission, _ = check_workspace_permission(db, workspace_id, openid)
-    if not has_permission:
-        raise ValueError('无权限访问该空间')
-    
-    file_record = db.query(FileUpload).filter(
-        FileUpload.id == file_id,
-        FileUpload.workspace_id == workspace_id,
-        FileUpload.is_deleted == False
-    ).first()
-    
-    if not file_record:
-        raise ValueError('文件记录不存在')
-    
-    result = {
-        'file_id': file_record.id,
-        'original_filename': file_record.original_filename,
-        'file_status': file_record.status,
-        'bills_count': file_record.bills_count
     }
-    try: 
-        # 如果处理完成，返回账单列表
-        if file_record.status == 'completed':
-            bills = db.query(Bill).filter(
-                Bill.file_upload_id == file_id,
-                Bill.is_deleted == False
-            ).all()
-            result['bills'] = [bill.to_dict() for bill in bills]
-    except Exception as e:
-        logger.error(writeMessage(str(e)))
-    
-    return result
 
-def get_file_for_view(db: Session, workspace_id: str, file_id: str, openid: str) -> tuple:
+
+def get_file_progress(workspace_id: str, file_id: str, openid: str) -> dict:
+    """获取文件处理进度"""
+    # 权限校验
+    require_workspace_permission(workspace_id, openid)
+    
+    with db_session() as db:
+        file_record = db.query(FileUpload).filter(
+            FileUpload.id == file_id,
+            FileUpload.workspace_id == workspace_id,
+            FileUpload.is_deleted == False
+        ).first()
+        
+        if not file_record:
+            raise ValueError('文件记录不存在')
+        
+        result = {
+            'file_id': file_record.id,
+            'original_filename': file_record.original_filename,
+            'file_status': file_record.status,
+            'bills_count': file_record.bills_count
+        }
+        
+        try: 
+            # 如果处理完成，返回账单列表
+            if file_record.status == 'completed':
+                bills = db.query(Bill).filter(
+                    Bill.file_upload_id == file_id,
+                    Bill.is_deleted == False
+                ).all()
+                result['bills'] = [bill.to_dict() for bill in bills]
+        except Exception as e:
+            logger.error(writeMessage(str(e)))
+        
+        return result
+
+
+def get_file_for_view(workspace_id: str, file_id: str, openid: str) -> tuple:
     """
     获取文件用于预览或下载
     :return: (file_path: str, filename: str, mime_type: str)
     :raises ValueError: 权限不足或文件不存在
     """
     # 权限校验
-    has_permission, _ = check_workspace_permission(db, workspace_id, openid)
-    if not has_permission:
-        raise ValueError('无权限访问该空间')
+    require_workspace_permission(workspace_id, openid)
     
-    # 查询文件记录
-    file_record = db.query(FileUpload).filter(
-        FileUpload.id == file_id,
-        FileUpload.workspace_id == workspace_id,
-        FileUpload.is_deleted == False
-    ).first()
-    
-    if not file_record:
-        raise ValueError('文件记录不存在')
-    
-    # 获取文件绝对路径
-    absolute_path = get_absolute_path(file_record.saved_path)
-    
-    # 检查文件是否存在
-    if not os.path.exists(absolute_path):
-        logger.warning(writeMessage(f"文件物理路径不存在 - file_id: {file_id}, path: {absolute_path}"))
-        raise ValueError('文件物理文件缺失')
-    
-    # 获取MIME类型
-    file_ext = get_file_extension(file_record.original_filename)
-    mime_type = _get_mime_type(file_ext)
-    
-    return absolute_path, file_record.original_filename, mime_type
+    with db_session() as db:
+        # 查询文件记录
+        file_record = db.query(FileUpload).filter(
+            FileUpload.id == file_id,
+            FileUpload.workspace_id == workspace_id,
+            FileUpload.is_deleted == False
+        ).first()
+        
+        if not file_record:
+            raise ValueError('文件记录不存在')
+        
+        # 获取文件绝对路径
+        absolute_path = get_absolute_path(file_record.saved_path)
+        
+        # 检查文件是否存在
+        if not os.path.exists(absolute_path):
+            logger.warning(writeMessage(f"文件物理路径不存在 - file_id: {file_id}, path: {absolute_path}"))
+            raise ValueError('文件物理文件缺失')
+        
+        # 获取MIME类型
+        file_ext = get_file_extension(file_record.original_filename)
+        mime_type = _get_mime_type(file_ext)
+        
+        return absolute_path, file_record.original_filename, mime_type
 
 
 def _get_mime_type(file_ext: str) -> str:

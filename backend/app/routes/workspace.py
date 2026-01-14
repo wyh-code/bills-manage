@@ -1,7 +1,6 @@
 """账务空间路由"""
 from flask import Blueprint, request, jsonify
 from app.utils.decorators import jwt_required
-from app.database import SessionLocal
 from app.services import workspace_service
 
 workspace_bp = Blueprint('workspace', __name__, url_prefix='/api/workspaces')
@@ -15,7 +14,6 @@ def create_workspace():
     Headers: Authorization: Bearer <token>
     Body: { name, description? }
     """
-    db = SessionLocal()
     try:
         data = request.get_json()
         
@@ -29,7 +27,6 @@ def create_workspace():
         description = data.get('description', '').strip() if data.get('description') else None
         
         workspace = workspace_service.create_workspace(
-            db=db,
             openid=request.openid,
             name=name,
             description=description
@@ -37,17 +34,15 @@ def create_workspace():
         
         return jsonify({
             'success': True,
-            'data': workspace.to_dict()
+            'data': workspace
         }), 200
         
     except Exception as e:
-        db.rollback()
         return jsonify({
             'success': False,
             'message': str(e)
         }), 500
-    finally:
-        db.close()
+
 
 @workspace_bp.route('', methods=['GET'])
 @jwt_required
@@ -61,7 +56,6 @@ def get_workspaces():
     - status: 可选，过滤空间状态 (active/inactive)
     - role: 可选，过滤用户角色 (owner/editor/viewer)，返回权限>=该角色的空间
     """
-    db = SessionLocal()
     try:
         status = request.args.get('status')
         role = request.args.get('role')
@@ -74,7 +68,6 @@ def get_workspaces():
             }), 400
         
         workspaces = workspace_service.get_user_workspaces(
-            db=db,
             openid=request.openid,
             status=status,
             role=role
@@ -90,8 +83,7 @@ def get_workspaces():
             'success': False,
             'message': str(e)
         }), 500
-    finally:
-        db.close()
+
 
 @workspace_bp.route('/<string:workspace_id>', methods=['GET'])
 @jwt_required
@@ -101,10 +93,8 @@ def get_workspace(workspace_id):
     GET /api/workspaces/:id
     Headers: Authorization: Bearer <token>
     """
-    db = SessionLocal()
     try:
         workspace = workspace_service.get_workspace_detail(
-            db=db,
             workspace_id=workspace_id,
             openid=request.openid
         )
@@ -124,8 +114,7 @@ def get_workspace(workspace_id):
             'success': False,
             'message': str(e)
         }), 500
-    finally:
-        db.close()
+
 
 @workspace_bp.route('/<string:workspace_id>', methods=['PUT'])
 @jwt_required
@@ -134,9 +123,8 @@ def update_workspace(workspace_id):
     更新空间
     PUT /api/workspaces/:id
     Headers: Authorization: Bearer <token>
-    Body: { name?, description? }
+    Body: { name?, description?, status? }
     """
-    db = SessionLocal()
     try:
         data = request.get_json()
         
@@ -151,7 +139,6 @@ def update_workspace(workspace_id):
             }), 400
         
         workspace = workspace_service.update_workspace(
-            db=db,
             workspace_id=workspace_id,
             openid=request.openid,
             name=name,
@@ -161,23 +148,20 @@ def update_workspace(workspace_id):
         
         return jsonify({
             'success': True,
-            'data': workspace.to_dict()
+            'data': workspace
         }), 200
         
     except ValueError as e:
-        db.rollback()
         return jsonify({
             'success': False,
             'message': str(e)
         }), 403
     except Exception as e:
-        db.rollback()
         return jsonify({
             'success': False,
             'message': str(e)
         }), 500
-    finally:
-        db.close()
+
 
 @workspace_bp.route('/<string:workspace_id>', methods=['DELETE'])
 @jwt_required
@@ -187,30 +171,24 @@ def delete_workspace(workspace_id):
     DELETE /api/workspaces/:id
     Headers: Authorization: Bearer <token>
     """
-    db = SessionLocal()
     try:
-        workspace_service.delete_workspace(
-            db=db,
+        result = workspace_service.delete_workspace(
             workspace_id=workspace_id,
             openid=request.openid
         )
         
         return jsonify({
             'success': True,
-            'message': '空间已删除'
+            'data': result
         }), 200
         
     except ValueError as e:
-        db.rollback()
         return jsonify({
             'success': False,
             'message': str(e)
         }), 403
     except Exception as e:
-        db.rollback()
         return jsonify({
             'success': False,
             'message': str(e)
         }), 500
-    finally:
-        db.close()

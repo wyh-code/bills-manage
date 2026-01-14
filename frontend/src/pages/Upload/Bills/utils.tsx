@@ -158,17 +158,3 @@ export const renderStatusTag = (status, isProcessing) => {
   return null;
 };
 
-export const getTotalCount = (selectedRows) => {
-  const totalCount: any = {};
-  selectedRows.forEach(row => {
-    if (row.amount_cny) {
-      totalCount.CNY = totalCount.CNY || 0;
-      totalCount.CNY += row.amount_cny
-    } else {
-      totalCount[row.currency] = totalCount[row.currency] || 0;
-      totalCount[row.currency] += row.amount_foreign
-    }
-  })
-  return Object.entries(totalCount)
-}
-

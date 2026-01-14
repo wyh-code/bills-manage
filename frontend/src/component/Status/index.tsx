@@ -7,6 +7,7 @@ export default ({ type, style, statusMap={} }: any) => {
     inactive: '已失效',
     pending: '待确认',
     payed: '已支付',
+    modified: '已修改',
     ...statusMap
   }
 

@@ -1,15 +1,13 @@
 """JWT工具类"""
-import jwt
-import os
-from datetime import datetime, timedelta, timezone
-from dotenv import load_dotenv
 
-load_dotenv()
+import jwt
+from datetime import datetime, timedelta, timezone
+from app.config import Config
 
 # 配置参数
-JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY')
-JWT_ALGORITHM = os.getenv('JWT_ALGORITHM', 'HS256')
-JWT_EXPIRE_HOURS = int(os.getenv('JWT_ACCESS_TOKEN_EXPIRE_HOURS', 24))
+JWT_SECRET_KEY = Config.JWT_SECRET_KEY
+JWT_ALGORITHM = Config.JWT_ALGORITHM
+JWT_EXPIRE_HOURS = int(Config.JWT_ACCESS_TOKEN_EXPIRE_HOURS)
 
 def generate_token(user_data: dict) -> str:
     """

@@ -8,8 +8,8 @@ load_dotenv()
 class Config:
     BASE_DIR = Path(__file__).parent.parent
     # 种子用户配置
-    SEED_USERS = os.getenv('SEED_USERS', '').split(',') if os.getenv('SEED_USERS') else []
-    
+    SEED_USERS = os.environ.get("SEED_USERS", "").split(",") if os.environ.get("SEED_USERS") else []
+
     # 加载环境变量中配置的密钥
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production")
     JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "JWT_SECRET_KEY")
@@ -23,7 +23,7 @@ class Config:
     # 服务器监听的端口号
     APP_PORT = os.environ.get("APP_PORT", 7788)
     # 是否启动调用模式
-    APP_DEBUG = os.environ.get("APP_DEBUG", "false").lower() == "true"
+    APP_DEBUG = os.environ.get("APP_DEBUG", "true").lower() == "true"
 
     # 日志配置
     # 日志存放目录
@@ -43,7 +43,7 @@ class Config:
     # 本地文件的存储目录
     STORAGE_DIR = os.environ.get("STORAGE_DIR", BASE_DIR / "storages")
     # 允许的文件扩展名
-    ALLOWED_EXTENSIONS = { 'pdf', 'png', 'jpg', 'jpeg', 'xml', 'xlsx', 'ecxml' }
+    ALLOWED_EXTENSIONS = {"pdf", "png", "jpg", "jpeg", "xml", "xlsx", "ecxml"}
 
     DEEPSEEK_CHAT_MODEL = os.environ.get("DEEPSEEK_CHAT_MODEL", "deepseek-chat")
     DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")

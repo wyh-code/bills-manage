@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Button, message, Modal, Typography } from 'antd';
 import { billApi } from '@/api/bill';
-import { getTotalCount, checkRequire } from './utils'
+import { getTotalCount } from '@/utils/utils';
+import { checkRequire } from './utils'
 import styles from './index.module.less';
 
 const { Text } = Typography;
@@ -87,22 +88,7 @@ export default ({ workspaceId, file_id, selectedRows, bills, handleReset }: Conf
         <Modal
           loading={spinning}
           open={visible}
-          title={(
-            <>
-              确认账单汇总：
-              {
-                totalCount.length ? (
-                  <div>
-                    {totalCount.map(([currency, count]) => (
-                      <Text strong key={currency} style={{ marginRight: 10, color: '#FF6619' }}>
-                        {currency}: {(count as number).toFixed(2)}
-                      </Text>
-                    ))}
-                  </div>
-                ) : null
-              }
-            </>
-          )}
+          title="确认账单汇总"
           onCancel={() => setVisible(false)}
           footer={(
             <div>
@@ -113,6 +99,17 @@ export default ({ workspaceId, file_id, selectedRows, bills, handleReset }: Conf
             </div>
           )}
         >
+          <div className={styles.totalCount}>
+            {
+              totalCount.length ? (
+                totalCount.map(([currency, count]) => (
+                  <Text strong key={currency}>
+                    {currency}: {(count as number).toFixed(2)}
+                  </Text>
+                ))
+              ) : null
+            }
+          </div>
           <div className={styles.confirm}>
             {
               selectedRows.map(item => (

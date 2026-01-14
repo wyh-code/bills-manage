@@ -2,6 +2,7 @@
 import os
 from flask import Blueprint, request, jsonify
 from app.services import auth_service
+from app.config import Config
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
@@ -14,20 +15,14 @@ def wx_config():
     Response: {success, data: {state, qrCodeUrl, ...}}
     """
     try:
-        DATASOURCE = os.getenv('DATASOURCE', 'authmate')
+        DATASOURCE = Config.DATASOURCE
         datasource = request.headers.get('datasource', DATASOURCE)
         result = auth_service.config(datasource)
         
-        return jsonify({
-            'success': True,
-            'data': result
-        }), 200
-        
+        return jsonify({"success": True, "data": result}), 200
+
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': str(e)
-        }), 500
+        return jsonify({"success": False, "message": str(e)}), 500
 
 @auth_bp.route('/wx/status/<state>', methods=['GET'])
 def wx_status(state):
@@ -38,19 +33,13 @@ def wx_status(state):
     Response: {success, data: {status, code, ...}}
     """
     try:
-        datasource = request.headers.get('datasource', 'mocknet')
+        datasource = request.headers.get('datasource', Config.DATASOURCE)
         result = auth_service.status(datasource, state)
         
-        return jsonify({
-            'success': True,
-            'data': result
-        }), 200
-        
+        return jsonify({"success": True, "data": result}), 200
+
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': str(e)
-        }), 500
+        return jsonify({"success": False, "message": str(e)}), 500
 
 @auth_bp.route('/wx/code2info', methods=['GET'])
 def wx_code2info():
@@ -61,29 +50,17 @@ def wx_code2info():
     Response: {success, data: {user, token}}
     """
     try:
-        datasource = request.headers.get('datasource', 'mocknet')
-        code = request.args.get('code')
+        datasource = request.headers.get("datasource", Config.DATASOURCE)
+        code = request.args.get("code")
         
         if not code:
-            return jsonify({
-                'success': False,
-                'message': 'code参数不能为空'
-            }), 400
-        
+            return jsonify({"success": False, "message": "code参数不能为空"}), 400
+
         result = auth_service.code2info(datasource, code)
-        
-        return jsonify({
-            'success': True,
-            'data': result
-        }), 200
-        
+
+        return jsonify({"success": True, "data": result}), 200
+
     except ValueError as e:
-        return jsonify({
-            'success': False,
-            'message': str(e)
-        }), 400
+        return jsonify({"success": False, "message": str(e)}), 400
     except Exception as e:
-        return jsonify({
-            'success': False,
-            'message': str(e)
-        }), 500
+        return jsonify({"success": False, "message": str(e)}), 500
