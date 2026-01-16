@@ -377,7 +377,7 @@ export default () => {
         </Form>
 
         <div className={styles.table}>
-          <Space align="center" style={{ marginBottom: 16 }}>
+          <Space align="center" className={styles.bar}>
             <Text strong>汇率设置（USD to CNY）：</Text>
             <InputNumber
               value={exchangeRate}
@@ -385,12 +385,15 @@ export default () => {
               min={0}
               step={0.1}
               precision={2}
-              style={{ width: 120 }}
+              className={styles.rate}
             />
-            <span style={{ marginLeft: 20 }}>
+            <span className={styles.barItem} style={{ marginLeft: 20 }}>
               <Text strong>总合计：</Text>
               {plusTotalCount(totalCount).map(([currency, count], index) => (
-                <Text strong key={index}>{currency} {(count as number).toFixed(2)}</Text>
+                <Text className={styles.itemText} style={{ marginLeft: 10 }} strong key={index}>
+                  {currency} 
+                  <span className={styles.count}>{(count as number).toFixed(2)}</span>
+                </Text>
               ))}
             </span>
             <span style={{ marginLeft: 20 }}>

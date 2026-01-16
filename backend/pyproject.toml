@@ -3,21 +3,33 @@ name = "backend"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 dependencies = [
+  "filetype>=1.2.0",
   "flask>=3.1.2",
   "flask-cors>=6.0.2",
-  "langchain>=1.2.0",
-  "langchain-community>=0.4.1",
   "lxml>=6.0.2",
+  "msoffcrypto-tool>=6.0.0",
   "nanoid>=2.0.0",
+  "networkx>=3.6.1",
   "openai>=2.14.0",
+  "openpyxl>=3.1.5",
+  "paddleocr>=3.3.2",
+  "paddlepaddle>=3.3.0",
+  "pandas>=2.3.3",
+  "pdfminer>=20191125",
+  "pdfminer-six>=20260107",
+  "pi-heif>=1.1.1",
   "pillow>=12.0.0",
   "pyjwt>=2.10.1",
   "pypdf>=6.5.0",
   "pytesseract>=0.3.13",
   "python-dotenv>=1.2.1",
+  "python-magic>=0.4.27",
   "qrcode>=8.2",
   "requests>=2.32.5",
   "sqlalchemy>=2.0.45",
+  "unstructured>=0.18.27",
+  "unstructured-inference>=0.2.4",
+  "xlrd>=2.0.2",
 ]

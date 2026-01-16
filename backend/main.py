@@ -1,9 +1,8 @@
 """主应用文件"""
 
 from app import create_app
-from app.utils.file_utils import writeMessage
+from app.utils import writeMessage, get_logger
 from app.config import Config
-from app.utils.logger import get_logger
 
 # 创建应用实例
 app = create_app()

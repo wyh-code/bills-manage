@@ -8,11 +8,16 @@ interface ExcelViewProps {
 }
 
 interface SheetData {
-  [key: string]: any[][];
+  headers: string[];
+  rows: any[][];
+}
+
+interface ParsedSheets {
+  [sheetName: string]: SheetData;
 }
 
 const ExcelView: React.FC<ExcelViewProps> = ({ file }) => {
-  const [sheets, setSheets] = useState<SheetData>({});
+  const [sheets, setSheets] = useState<ParsedSheets>({});
   const [sheetNames, setSheetNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,29 +32,48 @@ const ExcelView: React.FC<ExcelViewProps> = ({ file }) => {
       setError(null);
 
       const arrayBuffer = await file.arrayBuffer();
-      const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+      const workbook = XLSX.read(arrayBuffer, { 
+        type: 'array',
+        cellStyles: true,
+        cellDates: true
+      });
 
-      const sheetsData: SheetData = {};
+      const sheetsData: ParsedSheets = {};
       const names: string[] = [];
 
       workbook.SheetNames.forEach((sheetName) => {
         const worksheet = workbook.Sheets[sheetName];
+        
+        // 转换为二维数组,保留原始格式
         const jsonData = XLSX.utils.sheet_to_json(worksheet, {
           header: 1,
           defval: '',
           raw: false,
+          dateNF: 'yyyy-mm-dd'
         }) as any[][];
 
-        sheetsData[sheetName] = jsonData;
-        names.push(sheetName);
+        // 过滤空行
+        const filteredData = jsonData.filter(row => 
+          row.some(cell => cell !== null && cell !== undefined && cell !== '')
+        );
+
+        if (filteredData.length > 0) {
+          // 第一行作为表头
+          const headers = filteredData[0].map(cell => String(cell || ''));
+          // 其余行作为数据
+          const rows = filteredData.slice(1);
+
+          sheetsData[sheetName] = { headers, rows };
+          names.push(sheetName);
+        }
       });
 
       setSheets(sheetsData);
       setSheetNames(names);
-      setLoading(false);
     } catch (err) {
       console.error('解析 Excel 失败:', err);
       setError('无法解析 Excel 文件，请确保文件格式正确');
+    } finally {
       setLoading(false);
     }
   };
@@ -78,35 +102,44 @@ const ExcelView: React.FC<ExcelViewProps> = ({ file }) => {
     );
   }
 
-  const tabItems = sheetNames.map((name) => ({
-    key: name,
-    label: name,
-    children: (
-      <div className={styles.tableWrapper}>
-        <table className={styles.excelTable}>
-          <tbody>
-            {sheets[name]?.map((row, rowIndex) => (
-              <tr key={rowIndex}>
-                {row.map((cell, cellIndex) => (
-                  <td key={cellIndex} className={rowIndex === 0 ? styles.headerCell : ''}>
-                    {cell || ''}
-                  </td>
+  const tabItems = sheetNames.map((sheetName) => {
+    const sheet = sheets[sheetName];
+    
+    return {
+      key: sheetName,
+      label: sheetName,
+      children: (
+        <div className={styles.tableWrapper}>
+          <table className={styles.excelTable}>
+            <thead>
+              <tr>
+                {sheet.headers.map((header, index) => (
+                  <th key={index}>{header}</th>
                 ))}
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    ),
-  }));
+            </thead>
+            <tbody>
+              {sheet.rows.map((row, rowIndex) => (
+                <tr key={rowIndex}>
+                  {row.map((cell, cellIndex) => (
+                    <td key={cellIndex}>{cell ?? ''}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ),
+    };
+  });
 
   return (
     <div className={styles.excelView}>
       <div className={styles.info}>
-        <span>文件名: {file.name}</span>
+        <b>文件名: {file.name}</b>
         <span>大小: {(file.size / 1024).toFixed(2)} KB</span>
       </div>
-      <Tabs items={tabItems} />
+      <Tabs items={tabItems} defaultActiveKey={sheetNames[0]} />
     </div>
   );
 };

@@ -43,7 +43,7 @@ class Config:
     # 本地文件的存储目录
     STORAGE_DIR = os.environ.get("STORAGE_DIR", BASE_DIR / "storages")
     # 允许的文件扩展名
-    ALLOWED_EXTENSIONS = {"pdf", "png", "jpg", "jpeg", "xml", "xlsx", "ecxml"}
+    ALLOWED_EXTENSIONS = {"pdf", "png", "jpg", "jpeg", "xlsx", "xls"}
 
     DEEPSEEK_CHAT_MODEL = os.environ.get("DEEPSEEK_CHAT_MODEL", "deepseek-chat")
     DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")

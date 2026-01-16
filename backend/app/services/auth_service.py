@@ -1,9 +1,6 @@
 """认证服务"""
 import requests
-from app.utils.jwt_util import generate_token
-from app.utils.trace_util import get_trace_id
-from app.utils.file_utils import writeMessage
-from app.utils.logger import get_logger
+from app.utils import get_logger, writeMessage, get_trace_id, generate_token
 from app.config import Config
 from app.database import db_transaction
 from app.models import User

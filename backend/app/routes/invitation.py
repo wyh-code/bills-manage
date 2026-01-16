@@ -1,9 +1,7 @@
 """邀请管理路由"""
 from flask import Blueprint, request, jsonify
-from app.utils.decorators import jwt_required
 from app.services import invitation_service
-from app.utils.file_utils import writeMessage
-from app.utils.logger import get_logger
+from app.utils import jwt_required, writeMessage, get_logger
 
 logger = get_logger(__name__)
 invitation_bp = Blueprint('invitation', __name__, url_prefix='/api/workspaces')

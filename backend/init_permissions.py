@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from app.database import SessionLocal, engine
 from app.models import Permission
-from app.utils.logger import get_logger
+from app.utils import get_logger
 
 logger = get_logger(__name__)
 

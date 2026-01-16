@@ -3,6 +3,7 @@ import sys
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from app.config import Config
+from .trace_util import get_trace_id
 
 class LoggerManager:
     """日志管理器"""
@@ -64,6 +65,11 @@ class LoggerManager:
 
 
 loggerManager = LoggerManager()
+
+
+def writeMessage(message):
+    trace_id = get_trace_id()
+    return f"[TraceID: {trace_id}] {message}\n"
 
 
 def get_logger(name):

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Form, Upload, UploadProps, message, Select, Button } from 'antd';
-import { UploadOutlined, ReloadOutlined } from '@ant-design/icons';
+import { Form, Upload, UploadProps, message, Select, Spin } from 'antd';
+import { UploadOutlined } from '@ant-design/icons';
 import { isExcel, isImage, isPDF } from '@/utils/utils';
 import { workspaceApi } from "@/api/workspace";
 import { fileApi } from "@/api/upload";
@@ -26,7 +26,7 @@ export default () => {
     multiple: false,
     showUploadList: false,
     disabled: !workspaceId || loading,
-    accept: '.pdf,.png,.jpg,.jpeg,.xml,.xlsx,.ecxml',
+    accept: ["pdf", "png", "jpg", "jpeg", "xlsx", "xls"].join(','),
     beforeUpload: async (file) => {
       const isValidType = isExcel(file) || isImage(file) || isPDF(file);
       const isValidSize = file.size / 1024 / 1024 < 16;
@@ -57,7 +57,7 @@ export default () => {
         }
       } catch (error: any) {
         console.error('上传失败:', error);
-        message.error(error.response?.data?.message || '上传失败');
+        // message.error(error.response?.data?.message || '上传失败');
         setFile(null);
         setUploadResult({});
       } finally {
@@ -118,53 +118,54 @@ export default () => {
           <Empty style={{ margin: '30vh auto' }} description="暂无预览" />
         )}
       </div>
-      <div className={styles.conteiner}>
-        <div className={styles.formConteiner}>
-          <Form
-            form={form}
-            disabled={loading}
-            className={styles.form}
-            layout="vertical"
-          >
-            <Form.Item
-              style={{ marginBottom: 16 }}
-              label={(
-                <span>
-                  账务空间
-                  <span className={styles.labelTip}>
-                    账务空间选择后才能上传文件
-                  </span>
-                </span>
-              )}
-              required
-              rules={[{ required: true, message: '请选择账务空间' }]}
-              name="workspace"
+      <Spin spinning={loading}>
+        <div className={styles.conteiner}>
+          <div className={styles.formConteiner}>
+            <Form
+              form={form}
+              className={styles.form}
+              layout="vertical"
             >
-              <Select
-                disabled={disabledUpload}
-                placeholder="请选择账务空间"
-                options={options}
-                allowClear
-                onChange={formChange}
-              />
-            </Form.Item>
-          </Form>
+              <Form.Item
+                style={{ marginBottom: 16 }}
+                label={(
+                  <span>
+                    账务空间
+                    <span className={styles.labelTip}>
+                      账务空间选择后才能上传文件
+                    </span>
+                  </span>
+                )}
+                required
+                rules={[{ required: true, message: '请选择账务空间' }]}
+                name="workspace"
+              >
+                <Select
+                  disabled={disabledUpload}
+                  placeholder="请选择账务空间"
+                  options={options}
+                  allowClear
+                  onChange={formChange}
+                />
+              </Form.Item>
+            </Form>
 
-          <Upload {...uploadProps} style={{ width: "100%" }} disabled={disabledUpload}>
-            <div className={styles.uploadInner}>
-              <UploadOutlined style={{ fontSize: 24 }} />
-              <div>支持 PDF、PNG、JPG、ECXML 格式，单个文件不超过 16MB</div>
-            </div>
-          </Upload>
+            <Upload {...uploadProps} style={{ width: "100%" }} disabled={disabledUpload}>
+              <div className={styles.uploadInner}>
+                <UploadOutlined style={{ fontSize: 24 }} />
+                <div>支持 PDF、PNG、JPG、ECXML 格式，单个文件不超过 16MB</div>
+              </div>
+            </Upload>
+          </div>
+          <Bills
+            workspaceId={workspaceId}
+            uploadResult={uploadResult}
+            file={file}
+            handleReset={handleReset}
+            setDisabledUpload={(bool) => setDisabledUpload(bool)}
+          />
         </div>
-        <Bills
-          workspaceId={workspaceId}
-          uploadResult={uploadResult}
-          file={file}
-          handleReset={handleReset}
-          setDisabledUpload={(bool) => setDisabledUpload(bool)}
-        />
-      </div>
+      </Spin>
     </div>
   );
 };

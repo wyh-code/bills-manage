@@ -44,7 +44,7 @@ export default ({ month, row }) => {
               {`${row.key}_`}
               {raw_line.origin.trade_date}: {raw_line.origin.amount_cny ?
                 `CNY ${raw_line.origin.amount_cny}` :
-                `${raw_line.origin.currency} ${raw_line.origin.amount_cny}`}
+                `${raw_line.origin.currency} ${raw_line.origin.amount_foreign}`}
 
                 <FileSearchOutlined 
                   style={{ marginLeft: 10 }} 

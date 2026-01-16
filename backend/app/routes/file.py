@@ -2,9 +2,7 @@
 from flask import Blueprint, request, jsonify, send_file, make_response
 from urllib.parse import quote
 from app.config import Config
-from app.utils.decorators import jwt_required
-from app.utils.file_utils import allowed_file, writeMessage
-from app.utils.logger import get_logger
+from app.utils import get_logger, jwt_required, allowed_file, writeMessage
 from app.services import file_service
 
 logger = get_logger(__name__)

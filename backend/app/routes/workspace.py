@@ -1,6 +1,6 @@
 """账务空间路由"""
 from flask import Blueprint, request, jsonify
-from app.utils.decorators import jwt_required
+from app.utils import jwt_required
 from app.services import workspace_service
 
 workspace_bp = Blueprint('workspace', __name__, url_prefix='/api/workspaces')
