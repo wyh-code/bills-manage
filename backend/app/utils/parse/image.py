@@ -10,6 +10,7 @@ logger = get_logger(__name__)
 # 全局单例
 _ocr_instance: Optional[PaddleOCR] = None
 
+
 def get_ocr_instance() -> PaddleOCR:
     """获取 PaddleOCR 单例实例"""
     global _ocr_instance
@@ -47,7 +48,7 @@ def parse_image(filepath: str, min_confidence: float = 0.5) -> str:
         ocr = get_ocr_instance()
         result = ocr.predict(img)  # 使用图片数组而不是路径
 
-		# 4. 检查结果
+        # 4. 检查结果
         if not result:
             logger.warning(writeMessage(f"未识别到任何文本: {filepath}"))
             return "[图片未识别到文字内容]"
@@ -124,7 +125,7 @@ def parse_image(filepath: str, min_confidence: float = 0.5) -> str:
                 f"平均置信度: {avg_confidence:.2f}"
             )
         )
-        logger.info(writeMessage(f"识别文本预览: {extracted_text[:100]}..."))
+        logger.info(writeMessage(f"识别文本预览: {extracted_text}"))
 
         return extracted_text
 

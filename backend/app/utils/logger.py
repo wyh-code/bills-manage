@@ -5,16 +5,32 @@ from pathlib import Path
 from app.config import Config
 from .trace_util import get_trace_id
 
+
+class TraceIDFormatter(logging.Formatter):
+    """自动添加 TraceID 的格式化器"""
+
+    DEFAULT_FORMAT = (
+        "%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - "
+        "[TraceID: %(trace_id)s] %(message)s"
+    )
+
+    def __init__(self, fmt=None, datefmt=None, style="%"):
+        if fmt is None:
+            fmt = self.DEFAULT_FORMAT
+        super().__init__(fmt, datefmt, style)
+
+    def format(self, record):
+        try:
+            record.trace_id = get_trace_id()
+        except Exception:
+            record.trace_id = "UNKNOWN"
+        return super().format(record)
+
+
 class LoggerManager:
     """日志管理器"""
 
-    # 日志格式化字符串
-    FORMAT_STRING = (
-        "%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"
-    )
-    #  最大日志文件大小 10M
     MAX_BYTES = 10 * 1024 * 1024
-    # 日志文件保留份数
     BACKUP_COUNT = 5
 
     def __init__(self):
@@ -26,51 +42,46 @@ class LoggerManager:
         self._initialize()
 
     def _initialize(self):
-        # 获取根日志记录器
         root_logger = logging.getLogger()
-        # 移除原有的所有处理器，防止重复添加
         root_logger.handlers.clear()
-        # 设置日志级别
         root_logger.setLevel(self.level)
-        # 创建日志格式器
-        formatter = logging.Formatter(self.FORMAT_STRING)
-        # 如果启动控制台日志的话
+
+        # 使用自定义 Formatter
+        formatter = TraceIDFormatter()
+
         if self.enable_console:
-            # 创建控制台日志处理器
             console_handler = logging.StreamHandler(sys.stdout)
             console_handler.setLevel(self.level)
             console_handler.setFormatter(formatter)
             root_logger.addHandler(console_handler)
-        # 如果启动文件日志
+
         if self.enable_file:
-            # mkdir创建目录，parents=True如果父目录不存在，则自动创建所有的父目录，exist_ok如果目录已经存在，不抛出错误
             Path(self.log_dir).mkdir(parents=True, exist_ok=True)
-            # 创建日志文件路径
             log_path = self.log_dir / self.log_file
-            # 创建日志文件处理器
             file_handler = RotatingFileHandler(
-                str(log_path),  # 日志文件路径
-                maxBytes=self.MAX_BYTES,  # 最大文件大小
-                backupCount=self.BACKUP_COUNT,  # 最多保留几份最新的日志文件
-                encoding="utf-8",  # 编码
+                str(log_path),
+                maxBytes=self.MAX_BYTES,
+                backupCount=self.BACKUP_COUNT,
+                encoding="utf-8",
             )
             file_handler.setLevel(self.level)
             file_handler.setFormatter(formatter)
             root_logger.addHandler(file_handler)
-        # 捕获warning模块的警告作为文件
+
         logging.captureWarnings(True)
 
-    def get_logger(self, name='app'):
+    def get_logger(self, name="app"):
         return logging.getLogger(name)
 
 
 loggerManager = LoggerManager()
 
 
-def writeMessage(message):
-    trace_id = get_trace_id()
-    return f"[TraceID: {trace_id}] {message}\n"
-
-
-def get_logger(name):
+def get_logger(name="app"):
     return loggerManager.get_logger(name)
+
+
+def writeMessage(message):
+    """已废弃"""
+    trace_id = get_trace_id()
+    return f"[TraceID: {trace_id}] {message}"

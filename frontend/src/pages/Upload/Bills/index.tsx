@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Table, Button, Modal } from 'antd';
+import { Table, Button, Modal, message, InputNumber } from 'antd';
 import Empty from '@/component/Empty';
 import { useFileProgress } from '@/hooks/useFileProgress';
 import { getColumns, renderStatusTag, inputKey, checkRequire } from './utils';
@@ -17,6 +17,7 @@ interface BillsProps {
 export default ({ workspaceId, uploadResult, file, handleReset, setDisabledUpload }: BillsProps) => {
   const [selectedRows, setSelectedRows] = useState([]);
   const [datasource, setDatasource] = useState([]);
+  const [exchangeRate, setExchangeRate] = useState(7.1);
   const data = uploadResult?.data || {};
 
   // 使用轮询Hook
@@ -28,7 +29,7 @@ export default ({ workspaceId, uploadResult, file, handleReset, setDisabledUploa
       setDisabledUpload(false)
     },
     onFailed: () => {
-      console.error('处理失败');
+      message.error('处理失败');
       setDisabledUpload(false)
     },
   });
@@ -42,11 +43,15 @@ export default ({ workspaceId, uploadResult, file, handleReset, setDisabledUploa
 
   const onEdit = (key, value, row) => {
     row[key] = value;
-    if(value !== undefined) {
+    if (value !== undefined) {
       row[`${key}_tip`] = '';
     }
-    if(key === 'currency' && row[key]) {
+    if (key === 'currency' && row[key]) {
       row[key] = row[key].toUpperCase()
+    }
+    console.log(key, row.currency.toLowerCase() === 'usd', row.currency.toLowerCase())
+    if (key === 'amount_foreign' && row.currency.toLowerCase() === 'usd') {
+      row.amount_cny = Number((value * exchangeRate).toFixed(2))
     }
     row.status = 'modified'
     setDatasource([...datasource])
@@ -66,10 +71,20 @@ export default ({ workspaceId, uploadResult, file, handleReset, setDisabledUploa
     })
   }
 
+  const onComplete = (index) => {
+    const target = datasource[index];
+    const isUsd = target.currency.toLowerCase() === 'usd';
+    if (!isUsd) message.error('请先参考账单，将币种修改为USD（美元）')
+    if (target.amount_foreign && target.currency.toLowerCase() === 'usd') {
+      target.amount_cny = Number((target.amount_foreign * exchangeRate).toFixed(2))
+    }
+    setDatasource([...datasource])
+  }
+
   const onChangeStatus = (row) => {
     // 必填项校验
     let isRequire = true;
-    if(row.isEdit) {
+    if (row.isEdit) {
       isRequire = checkRequire(row);
     }
     row.isEdit = !isRequire || !row.isEdit;
@@ -93,7 +108,7 @@ export default ({ workspaceId, uploadResult, file, handleReset, setDisabledUploa
     handleReset();
   }
 
-  const columns = getColumns({ onEdit, onRemove, onChangeStatus });
+  const columns = getColumns({ onEdit, onRemove, onComplete, onChangeStatus });
 
   useEffect(() => {
     if (bills) {
@@ -116,9 +131,19 @@ export default ({ workspaceId, uploadResult, file, handleReset, setDisabledUploa
         <div className={styles.action}>
           {
             !workspaceId || !data.file_id || isProcessing ? null : (
-              <Button type="primary" onClick={addBills} style={{ marginRight: 10 }} >
-                添加账单
-              </Button>
+              <>
+                <span className={styles.actionTip}>币种为USD时，修改交易地金额将自动根据汇率补全人民币金额</span>
+                <div className={styles.exchangeRate}>
+                  <span>美元汇率：</span>
+                  <InputNumber
+                    value={exchangeRate}
+                    onChange={(value) => setExchangeRate(value)}
+                  />
+                </div>
+                <Button type="primary" onClick={addBills} style={{ marginRight: 10 }} >
+                  添加账单
+                </Button>
+              </>
             )
           }
           <ConfirmButton

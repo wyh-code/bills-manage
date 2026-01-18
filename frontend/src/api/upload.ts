@@ -22,6 +22,20 @@ export interface FileInfo {
   bills?: any[];
 }
 
+export interface FileRecord {
+  file_id: string;
+  file_name: string;
+  workspace_id: string;
+  uploader: {
+    openid: string;
+    nickname: string | null;
+  };
+  upload_time: string;
+  bills_count: number;
+  total_amount: Record<string, number>;
+  bills: any[];
+}
+
 export interface ApiResponse<T = any> {
   success: boolean;
   data?: T;
@@ -172,6 +186,21 @@ class FileAPI {
     } catch (error) {
       throw new Error('文件下载失败');
     }
+  }
+
+  /**
+   * 获取文件上传记录
+   */
+  async getRecords(): Promise<FileRecord[]> {
+    const response = await apiClient.get<ApiResponse<FileRecord[]>>(
+      '/files/records',
+    );
+
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.message || '获取文件记录失败');
+    }
+
+    return response.data.data;
   }
 }
 

@@ -10,8 +10,28 @@ export function generateDonutChartSVG(data, radius) {
   const centerX = outerRadius;
   const centerY = outerRadius;
 
-  // 计算总scale
-  const totalScale = data.reduce((sum, item) => sum + item.scale, 0);
+  // 过滤有效数据
+  const validData = data.filter(item => item.scale > 0);
+
+  // 处理空数据情况
+  if (validData.length === 0) {
+    const emptyCircle = `
+      <circle cx="${centerX}" cy="${centerY}" r="${outerRadius}" fill="#E5E5E5" />
+      <circle cx="${centerX}" cy="${centerY}" r="${innerRadius}" fill="white" />
+    `;
+    return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">${emptyCircle}</svg>`;
+  }
+  // 处理只有一条数据
+  if (validData.length === 1) {
+    const color = validData[0].color;
+    const fullCircle = `
+    <circle cx="${centerX}" cy="${centerY}" r="${outerRadius}" fill="${color}" />
+    <circle cx="${centerX}" cy="${centerY}" r="${innerRadius}" fill="white" />
+  `;
+    return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" xmlns="http://www.w3.org/2000/svg">${fullCircle}</svg>`;
+  }
+
+  const totalScale = validData.reduce((sum, item) => sum + item.scale, 0);
 
   // 辅助函数：根据角度和半径计算坐标点
   function polarToCartesian(centerX, centerY, radius, angleInDegrees) {
@@ -44,7 +64,7 @@ export function generateDonutChartSVG(data, radius) {
 
   // 生成所有扇区
   let currentAngle = 0;
-  const paths = data.map(item => {
+  const paths = validData.map(item => {
     const angle = (item.scale / totalScale) * 360;
     const pathData = createArcPath(currentAngle, currentAngle + angle, outerRadius, innerRadius);
     const path = `<path d="${pathData}" fill="${item.color}" />`;

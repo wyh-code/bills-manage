@@ -1,9 +1,9 @@
 """文件上传服务"""
 
 import os
-import threading
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime
-from app.models import FileUpload, Bill
+from app.models import FileUpload, Bill, User, Workspace, WorkspaceMember
 from app.database import SessionLocal, db_session, db_transaction
 from app.utils import (
     writeMessage,
@@ -19,6 +19,7 @@ from app.utils import (
 )
 
 logger = get_logger(__name__)
+executor = ThreadPoolExecutor(max_workers=6)
 
 
 def clean_bill_data(bill: dict) -> dict:
@@ -92,89 +93,100 @@ def process_file_async(
     file_id: str, workspace_id: str, raw_content: str, original_filename: str
 ):
     """异步处理文件精炼"""
-    bills_data = []
-
     logger.info(writeMessage(f"开始精炼 - file_id: {file_id}"))
 
     try:
         refined_content = refine_bill_content(raw_content, original_filename)
 
-        if refined_content:
-            bills_data_json_list = convert_bills_to_json(refined_content)
-            bills_data = [clean_bill_data(bill) for bill in bills_data_json_list]
+        # 检查精炼结果是否为错误信息
+        if refined_content.startswith("["):
+            raise ValueError(refined_content)
 
+        if not refined_content:
+            raise ValueError("精炼结果为空")
+
+        bills_data_json_list = convert_bills_to_json(refined_content)
+        bills_data = [clean_bill_data(bill) for bill in bills_data_json_list]
+
+        logger.info(f"精炼完成 - file_id: {file_id}, bills: {len(bills_data)}")
+
+        # 保存到数据库
+        db = SessionLocal()
+        try:
+            file_record = db.query(FileUpload).filter(FileUpload.id == file_id).first()
+            if not file_record:
+                raise ValueError(f"文件记录不存在 - file_id: {file_id}")
+
+            now = datetime.now()
+
+            for bill_item in bills_data:
+                bill = Bill(
+                    file_upload_id=file_record.id,
+                    workspace_id=workspace_id,
+                    bank=bill_item.get("bank"),
+                    trade_date=bill_item.get("trade_date"),
+                    record_date=bill_item.get("record_date"),
+                    description=bill_item.get("description"),
+                    amount_cny=bill_item.get("amount_cny"),
+                    card_last4=bill_item.get("card_last4"),
+                    amount_foreign=bill_item.get("amount_foreign"),
+                    currency=bill_item.get("currency"),
+                    raw_line=bill_item.get("raw_line", ""),
+                    status="pending",
+                )
+                db.add(bill)
+
+            file_record.refined_content = refined_content
+            file_record.bills_count = len(bills_data)
+            file_record.status = "completed"
+            file_record.updated_at = now
+
+            db.commit()
             logger.info(
-                writeMessage(f"精炼完成 - file_id: {file_id}, bills: {len(bills_data)}")
+                writeMessage(
+                    f"异步处理完成 - file_id: {file_id}, bills: {len(bills_data)}"
+                )
             )
 
-            db = SessionLocal()
-            try:
-                file_record = (
-                    db.query(FileUpload).filter(FileUpload.id == file_id).first()
-                )
-                if not file_record:
-                    logger.info(writeMessage(f"文件记录不存在 - file_id: {file_id}"))
-                    return
-
-                now = datetime.now()
-
-                for bill_item in bills_data:
-                    bill = Bill(
-                        file_upload_id=file_record.id,
-                        workspace_id=workspace_id,
-                        bank=bill_item.get("bank"),
-                        trade_date=bill_item.get("trade_date"),
-                        record_date=bill_item.get("record_date"),
-                        description=bill_item.get("description"),
-                        amount_cny=bill_item.get("amount_cny"),
-                        card_last4=bill_item.get("card_last4"),
-                        amount_foreign=bill_item.get("amount_foreign"),
-                        currency=bill_item.get("currency"),
-                        raw_line=bill_item.get("raw_line", ""),
-                        status="pending",
-                    )
-                    db.add(bill)
-
-                file_record.bills_count = len(bills_data)
-                file_record.status = "completed"
-                file_record.updated_at = now
-
-                db.commit()
-                logger.info(
-                    writeMessage(
-                        f"异步处理完成 - file_id: {file_id}, bills: {len(bills_data)}"
-                    )
-                )
-
-            except Exception as e:
-                db.rollback()
-                logger.error(
-                    writeMessage(
-                        f"数据库操作失败 - file_id: {file_id}, error: {str(e)}"
-                    )
-                )
-
-                try:
-                    file_record = (
-                        db.query(FileUpload).filter(FileUpload.id == file_id).first()
-                    )
-                    if file_record:
-                        file_record.status = "failed"
-                        file_record.updated_at = datetime.now()
-                        db.commit()
-                except Exception as update_error:
-                    logger.error(
-                        writeMessage(
-                            f"更新失败状态异常 - file_id: {file_id}, error: {str(update_error)}"
-                        )
-                    )
-            finally:
-                db.close()
-        else:
-            logger.info(writeMessage(f"精炼结果为空 - file_id: {file_id}"))
+        except Exception as e:
+            db.rollback()
+            logger.error(f"数据库操作失败 - file_id: {file_id}, error: {str(e)}")
+            raise ValueError(f"数据库操作失败 - file_id: {file_id}, error: {str(e)}")
+        finally:
+            db.close()
 
     except Exception as e:
         logger.error(writeMessage(f"精炼失败 - file_id: {file_id}, error: {str(e)}"))
+
+        # 更新文件状态为失败
+        db = SessionLocal()
+        try:
+            file_record = db.query(FileUpload).filter(FileUpload.id == file_id).first()
+
+            if file_record:
+                # 查找并删除同 hash 的旧失败记录
+                db.query(FileUpload).filter(
+                    FileUpload.workspace_id == file_record.workspace_id,
+                    FileUpload.file_hash == file_record.file_hash,
+                    FileUpload.is_deleted == False,
+                    FileUpload.status == "failed",
+                ).update(
+                    {"is_deleted": True, "deleted_at": datetime.now()},
+                    synchronize_session=False,
+                )
+
+                file_record.refined_content = str(e)
+                file_record.status = "failed"
+                file_record.updated_at = datetime.now()
+                db.commit()
+        except Exception as update_error:
+            logger.error(
+                writeMessage(
+                    f"更新失败状态异常 - file_id: {file_id}, error: {str(update_error)}"
+                )
+            )
+        finally:
+            db.close()
 
 
 def upload_and_parse_file(workspace_id: str, openid: str, file) -> dict:
@@ -192,10 +204,9 @@ def upload_and_parse_file(workspace_id: str, openid: str, file) -> dict:
 
     if is_duplicate:
         logger.info(
-            writeMessage(
-                f"文件重复 - file_hash: {file_hash}, existing_file_id: {file_record.id}"
-            )
+            f"文件重复 - file_hash: {file_hash}, existing_file_id: {file_record.id}"
         )
+
         return {
             "status": "duplicate",
             "data": {
@@ -256,12 +267,9 @@ def upload_and_parse_file(workspace_id: str, openid: str, file) -> dict:
         file_id = file_record.id
 
     # 5. 启动后台线程
-    thread = threading.Thread(
-        target=process_file_async,
-        args=(file_id, workspace_id, raw_content, original_filename),
+    executor.submit(
+        process_file_async, file_id, workspace_id, raw_content, original_filename
     )
-    thread.daemon = True
-    thread.start()
 
     return {
         "status": "success",
@@ -349,17 +357,34 @@ def get_file_for_view(workspace_id: str, file_id: str, openid: str) -> tuple:
         return absolute_path, file_record.original_filename, mime_type
 
 
-def get_file_records(workspace_id: str, openid: str) -> list:
+def get_file_records(openid: str, workspace_ids=None) -> list:
     """获取文件上传记录"""
-    require_workspace_permission(workspace_id, openid)
 
     with db_session() as db:
-        from app.models import User
+        # 获取用户有权限的所有空间
+        members = (
+            db.query(WorkspaceMember)
+            .filter(
+                WorkspaceMember.member_openid == openid,
+                WorkspaceMember.is_deleted == False,
+            )
+            .all()
+        )
+
+        accessible_workspace_ids = [m.workspace_id for m in members]
+
+        # 筛选空间
+        if workspace_ids:
+            accessible_workspace_ids = [
+                wid for wid in workspace_ids if wid in accessible_workspace_ids
+            ]
 
         files = (
             db.query(FileUpload)
             .filter(
-                FileUpload.workspace_id == workspace_id, FileUpload.is_deleted == False
+                FileUpload.workspace_id.in_(accessible_workspace_ids),
+                FileUpload.is_deleted == False,
+                FileUpload.status != "failed",
             )
             .order_by(FileUpload.created_at.desc())
             .all()
@@ -370,6 +395,15 @@ def get_file_records(workspace_id: str, openid: str) -> list:
             # 获取上传人信息
             uploader = (
                 db.query(User).filter(User.openid == file.uploaded_by_openid).first()
+            )
+
+            # 获取空间信息
+            workspace = (
+                db.query(Workspace)
+                .filter(
+                    Workspace.id == file.workspace_id, Workspace.is_deleted == False
+                )
+                .first()
             )
 
             # 计算账单总金额
@@ -394,7 +428,10 @@ def get_file_records(workspace_id: str, openid: str) -> list:
                 {
                     "file_id": file.id,
                     "file_name": file.original_filename,
-                    "workspace_id": file.workspace_id,
+                    "workspace": {
+                        "name": workspace.name,
+                        "id": workspace.id,
+                    },
                     "uploader": {
                         "openid": file.uploaded_by_openid,
                         "nickname": uploader.nickname if uploader else None,

@@ -24,7 +24,7 @@ export const checkRequire = (row) => {
   return isRequire
 }
 
-export const getColumns = ({ onEdit, onChangeStatus, onRemove }) => {
+export const getColumns = ({ onEdit, onChangeStatus, onComplete, onRemove }) => {
 
   const renderCell = (value) => {
     return value || value === 0 ? value : '--';
@@ -115,7 +115,7 @@ export const getColumns = ({ onEdit, onChangeStatus, onRemove }) => {
     {
       title: '操作',
       dataIndex: 'handler',
-      width: 100,
+      width: 130,
       render: (_, row, index) => (
         <div>
           {
@@ -123,7 +123,14 @@ export const getColumns = ({ onEdit, onChangeStatus, onRemove }) => {
               <Link onClick={() => onChangeStatus(row)}>保存</Link> :
               <Link onClick={() => onChangeStatus(row)}>编辑</Link>
           }
-          <Link style={{ marginLeft: 10 }} onClick={() => onRemove(index)}>删除</Link>
+          <Link
+            disabled={row.amount_cny !== null}
+            style={{ marginLeft: 10 }}
+            onClick={() => onComplete(index)}
+          >
+            补全
+          </Link>
+          <Link style={{ marginLeft: 10 }} type="red" onClick={() => onRemove(index)}>删除</Link>
         </div>
       )
     },

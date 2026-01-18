@@ -29,7 +29,8 @@
   --border-color: #D3DAE3;
   --border-color-1: #E6EBF1;
   --border: 1px solid var(--border-color);
-  --shadow: 0 2px 8px 0 rgba(17, 23, 32, .05);
+  --shadow: 0 2px 8px rgba(17, 23, 32, .05);
+  --shadow-1: 0 2px 8px rgba(0, 0, 0, 0.06);
 
   --text-link: var(--blue);
   --text-disabled: rgba(31, 56, 88, .6);
@@ -42,6 +43,7 @@
   --text-3: #8f9aa9;
   --text-4: #bcc5d1;
 
+  --space-2: 2px;
   --space-4: 4px;
   --space-8: 8px;
   --space-10: 8px;
@@ -73,6 +75,10 @@ a {
   background-color: var(--background);
   font-family: var(--font-family);
   height: 100vh;
+}
+
+.ant-layout {
+  background: var(--background-1);
 }
 
 .ant-layout-header .ant-menu {

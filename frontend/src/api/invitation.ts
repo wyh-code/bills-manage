@@ -1,15 +1,12 @@
 import apiClient from './client';
 
-export interface CreateInvitationRequest {
-  role: 'editor' | 'viewer';
-}
-
 export interface InvitationInfo {
   id: string;
-  workspace_id: string;
   token: string;
-  share_url: string;
-  role: string;
+  share_url?: string;
+  type: 'platform' | 'workspace';
+  workspace_id?: string;
+  role?: string;
   created_by_openid: string;
   expires_at: string;
   max_uses: number;
@@ -24,16 +21,37 @@ export interface InvitationInfo {
     openid: string;
     nickname: string | null;
     joined_at: string;
-    is_active: boolean;
+    agreed_at: string;
   }>;
 }
 
+export interface CreateInvitationRequest {
+  type: 'platform' | 'workspace';
+  workspace_id?: string;
+  role?: 'editor' | 'viewer';
+}
+
 export interface JoinResult {
-  workspace_id: string;
-  workspace_name: string;
-  role: string;
+  type: 'platform' | 'workspace';
+  user: any;
+  workspace_id?: string;
+  workspace_name?: string;
+  role?: string;
   joined_at?: string;
+  activated_at?: string;
   message?: string;
+}
+
+export interface InvitationUseRecord {
+  invitation_type: 'platform' | 'workspace';
+  user: {
+    openid: string;
+    headimgurl: string;
+    nickname: string | null;
+  };
+  used_at: string;
+  agreed_at: string;
+  invitation_created_at: string;
 }
 
 export interface ApiResponse<T = any> {
@@ -44,11 +62,11 @@ export interface ApiResponse<T = any> {
 
 class InvitationAPI {
   /**
-   * 创建邀请链接
+   * 创建邀请码
    */
-  async create(workspaceId: string, data: CreateInvitationRequest): Promise<InvitationInfo> {
+  async create(data: CreateInvitationRequest): Promise<InvitationInfo> {
     const response = await apiClient.post<ApiResponse<InvitationInfo>>(
-      `/workspaces/${workspaceId}/invitations`,
+      `/invitations`,
       data
     );
 
@@ -60,16 +78,16 @@ class InvitationAPI {
   }
 
   /**
-   * 通过邀请加入空间
+   * 通过邀请加入
    */
   async join(token: string): Promise<JoinResult> {
     const response = await apiClient.post<ApiResponse<JoinResult>>(
-      '/workspaces/join',
-      { invitation_token: token }
+      '/invitations/join',
+      { token }
     );
 
     if (!response.data.success || !response.data.data) {
-      throw new Error(response.data.message || '加入空间失败');
+      throw new Error(response.data.message || '加入失败');
     }
 
     return response.data.data;
@@ -78,10 +96,10 @@ class InvitationAPI {
   /**
    * 获取邀请列表
    */
-  async list(workspaceId: string, status?: 'active' | 'revoked'): Promise<InvitationInfo[]> {
+  async list(params?: { type?: string; workspace_id?: string }): Promise<InvitationInfo[]> {
     const response = await apiClient.get<ApiResponse<InvitationInfo[]>>(
-      `/workspaces/${workspaceId}/invitations`,
-      { params: { status } }
+      `/invitations`,
+      { params }
     );
 
     if (!response.data.success || !response.data.data) {
@@ -92,16 +110,19 @@ class InvitationAPI {
   }
 
   /**
-   * 撤销邀请
+   * 获取邀请使用记录
    */
-  async revoke(workspaceId: string, invitationId: string): Promise<void> {
-    const response = await apiClient.delete<ApiResponse>(
-      `/workspaces/${workspaceId}/invitations/${invitationId}`
+  async getUses(limit?: number): Promise<InvitationUseRecord[]> {
+    const response = await apiClient.get<ApiResponse<InvitationUseRecord[]>>(
+      '/invitations/uses',
+      { params: { limit } }
     );
 
-    if (!response.data.success) {
-      throw new Error(response.data.message || '撤销邀请失败');
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.message || '获取邀请记录失败');
     }
+
+    return response.data.data;
   }
 }
 

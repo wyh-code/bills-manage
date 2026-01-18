@@ -33,7 +33,7 @@ class AuthService {
   /**
    * 设置用户信息
    */
-  private setUser(user: User): void {
+  setUser(user: User): void {
     this.storage.setItem(USER_KEY, JSON.stringify(user));
   }
 

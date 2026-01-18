@@ -1,122 +1,131 @@
 """邀请管理路由"""
+
 from flask import Blueprint, request, jsonify
 from app.services import invitation_service
-from app.utils import jwt_required, writeMessage, get_logger
+from app.utils import get_logger, writeMessage, jwt_required
 
 logger = get_logger(__name__)
-invitation_bp = Blueprint('invitation', __name__, url_prefix='/api/workspaces')
+invitation_bp = Blueprint("invitation", __name__, url_prefix="/api/invitations")
 
 
-@invitation_bp.route('/<string:workspace_id>/invitations', methods=['POST'])
+@invitation_bp.route("", methods=["POST"])
 @jwt_required
-def create_invitation(workspace_id):
+def create_invitation():
     """
-    创建邀请链接
-    POST /api/workspaces/:workspace_id/invitations
-    Body: { role: 'editor' }
+    创建邀请码(统一接口)
+    POST /api/invitations
+    Body: {
+        type: 'platform' | 'workspace',
+        workspace_id?: string,  # workspace类型必填
+        role?: 'editor' | 'viewer'  # workspace类型必填
+    }
     """
     try:
         data = request.get_json()
-        role = data.get('role', '').strip()
-        
-        if not role:
-            return jsonify({'success': False, 'message': 'role参数不能为空'}), 400
-        
-        if role not in ['editor', 'viewer']:
-            return jsonify({'success': False, 'message': 'role只能是editor或viewer'}), 400
-        
-        # 获取前端域名（从请求头或配置）
-        base_url = request.headers.get('Origin') or request.host_url.rstrip('/')
-        
-        result = invitation_service.create_invitation(
-            workspace_id=workspace_id,
-            openid=request.openid,
-            role=role,
-            base_url=base_url
+        invitation_type = data.get("type", "").strip()
+
+        if not invitation_type:
+            return jsonify({"success": False, "message": "type参数不能为空"}), 400
+
+        if invitation_type not in ["platform", "workspace"]:
+            return (
+                jsonify({"success": False, "message": "type只能是platform或workspace"}),
+                400,
+            )
+
+        workspace_id = (
+            data.get("workspace_id", "").strip() if data.get("workspace_id") else None
         )
-        
-        return jsonify({'success': True, 'data': result}), 200
-        
+
+        role = data.get("role", "").strip() if data.get("role") else None
+
+        # 获取前端域名
+        base_url = request.headers.get("Origin") or request.host_url.rstrip("/")
+
+        result = invitation_service.create_invitation(
+            openid=request.openid,
+            invitation_type=invitation_type,
+            workspace_id=workspace_id,
+            role=role,
+            base_url=base_url,
+        )
+
+        return jsonify({"success": True, "data": result}), 200
+
     except ValueError as e:
-        return jsonify({'success': False, 'message': str(e)}), 403
+        return jsonify({"success": False, "message": str(e)}), 403
     except Exception as e:
-        logger.error(writeMessage(f"创建邀请异常 - workspace_id: {workspace_id}, error: {str(e)}"))
-        return jsonify({'success': False, 'message': str(e)}), 500
+        logger.error(writeMessage(f"创建邀请异常 - error: {str(e)}"))
+        return jsonify({"success": False, "message": str(e)}), 500
 
 
-@invitation_bp.route('/join', methods=['POST'])
+@invitation_bp.route("/join", methods=["POST"])
 @jwt_required
 def join_by_invitation():
     """
-    通过邀请加入空间
-    POST /api/workspaces/join
-    Body: { invitation_token: 'xxx' }
+    通过邀请码加入
+    POST /api/invitations/join
+    Body: { token: 'xxx' }
     """
     try:
         data = request.get_json()
-        token = data.get('invitation_token', '').strip()
-        
+        token = data.get("token", "").strip()
+
         if not token:
-            return jsonify({'success': False, 'message': 'invitation_token参数不能为空'}), 400
-        
+            return jsonify({"success": False, "message": "token参数不能为空"}), 400
+
         result = invitation_service.join_by_invitation(
-            token=token,
-            openid=request.openid
+            token=token, openid=request.openid
         )
-        
-        return jsonify({'success': True, 'data': result}), 200
-        
+
+        return jsonify({"success": True, "data": result}), 200
+
     except ValueError as e:
-        return jsonify({'success': False, 'message': str(e)}), 400
+        return jsonify({"success": False, "message": str(e)}), 400
     except Exception as e:
-        logger.error(writeMessage(f"加入空间异常 - error: {str(e)}"))
-        return jsonify({'success': False, 'message': str(e)}), 500
+        logger.error(writeMessage(f"加入邀请异常 - error: {str(e)}"))
+        return jsonify({"success": False, "message": str(e)}), 500
 
 
-@invitation_bp.route('/<string:workspace_id>/invitations', methods=['GET'])
+@invitation_bp.route("", methods=["GET"])
 @jwt_required
-def get_invitations(workspace_id):
+def get_invitations():
     """
-    获取空间邀请列表
-    GET /api/workspaces/:workspace_id/invitations?status=active
+    获取邀请列表
+    GET /api/invitations?type=platform&workspace_id=xxx
     """
     try:
-        status = request.args.get('status')
-        
+        invitation_type = request.args.get("type")
+        workspace_id = request.args.get("workspace_id")
+
         invitations = invitation_service.get_invitations(
-            workspace_id=workspace_id,
             openid=request.openid,
-            status=status
+            invitation_type=invitation_type,
+            workspace_id=workspace_id,
         )
-        
-        return jsonify({'success': True, 'data': invitations}), 200
-        
-    except ValueError as e:
-        return jsonify({'success': False, 'message': str(e)}), 403
+
+        return jsonify({"success": True, "data": invitations}), 200
+
     except Exception as e:
-        logger.error(writeMessage(f"获取邀请列表异常 - workspace_id: {workspace_id}, error: {str(e)}"))
-        return jsonify({'success': False, 'message': str(e)}), 500
+        logger.error(writeMessage(f"获取邀请列表异常 - error: {str(e)}"))
+        return jsonify({"success": False, "message": str(e)}), 500
 
-
-@invitation_bp.route('/<string:workspace_id>/invitations/<string:invitation_id>', methods=['DELETE'])
+@invitation_bp.route("/uses", methods=["GET"])
 @jwt_required
-def revoke_invitation(workspace_id, invitation_id):
+def get_invitation_uses():
     """
-    撤销邀请
-    DELETE /api/workspaces/:workspace_id/invitations/:invitation_id
+    获取邀请使用记录
+    GET /api/invitations/uses?limit=5
     """
     try:
-        invitation_service.revoke_invitation(
-            workspace_id=workspace_id,
-            invitation_id=invitation_id,
-            openid=request.openid
+        limit = request.args.get("limit", type=int)
+
+        uses = invitation_service.get_invitation_uses(
+            openid=request.openid, limit=limit
         )
-        
-        return jsonify({'success': True, 'message': '邀请已撤销'}), 200
-        
-    except ValueError as e:
-        logger.error(writeMessage(f"撤销邀请异常 - invitation_id: {invitation_id}, error: {str(e)}"))
-        return jsonify({'success': False, 'message': str(e)}), 403
+
+        return jsonify({"success": True, "data": uses}), 200
+
     except Exception as e:
-        logger.error(writeMessage(f"撤销邀请异常 - invitation_id: {invitation_id}, error: {str(e)}"))
-        return jsonify({'success': False, 'message': str(e)}), 500
+        logger.error(writeMessage(f"获取邀请使用记录异常 - error: {str(e)}"))
+        return jsonify({"success": False, "message": str(e)}), 500

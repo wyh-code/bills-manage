@@ -1,12 +1,101 @@
 """账单管理服务"""
 
 from datetime import datetime
-from sqlalchemy import func
-from app.models import Bill, FileUpload, WorkspaceMember
+from sqlalchemy import func, or_
+from app.models import Bill, FileUpload, WorkspaceMember, User
 from app.database import db_session, db_transaction
 from app.utils import get_logger, writeMessage, require_workspace_permission
 
 logger = get_logger(__name__)
+
+
+def get_settlement_summary(openid: str, workspace_ids: list = None) -> dict:
+    """
+    获取结算汇总统计
+
+    Returns:
+        {
+            'total': {...},  # 总金额
+            'settled': {...},  # 已结算金额(payed)
+            'unsettled': {...},  # 未结算金额(active/modified)
+            'settled_percentage': float  # 结算比例
+        }
+    """
+    with db_session() as db:
+        # 获取用户有权限的所有空间
+        members = (
+            db.query(WorkspaceMember)
+            .filter(
+                WorkspaceMember.member_openid == openid,
+                WorkspaceMember.is_deleted == False,
+            )
+            .all()
+        )
+
+        accessible_workspace_ids = [m.workspace_id for m in members]
+
+        # 筛选空间
+        if workspace_ids:
+            accessible_workspace_ids = [
+                wid for wid in workspace_ids if wid in accessible_workspace_ids
+            ]
+
+        # 查询所有已确认/已修改的账单
+        bills = (
+            db.query(Bill)
+            .filter(
+                Bill.workspace_id.in_(accessible_workspace_ids),
+                Bill.is_deleted == False,
+                or_(
+                    Bill.status == "active",
+                    Bill.status == "modified",
+                    Bill.status == "payed",
+                ),
+            )
+            .all()
+        )
+
+        total = {}
+        settled = {}
+        unsettled = {}
+        if bills:
+            for bill in bills:
+                if bill.amount_cny:
+                    currency = "CNY"
+                    amount = float(bill.amount_cny)
+                elif bill.amount_foreign and bill.currency:
+                    currency = bill.currency
+                    amount = float(bill.amount_foreign)
+                else:
+                    continue
+
+                # 总计
+                total[currency] = total.get(currency, 0) + amount
+
+                # 分类统计
+                if bill.status == "payed":
+                    settled[currency] = settled.get(currency, 0) + amount
+                else:
+                    unsettled[currency] = unsettled.get(currency, 0) + amount
+
+            # 计算结算比例(以CNY为基准)
+            settled_percentage = 0
+            if total.get("CNY", 0) > 0:
+                settled_percentage = (settled.get("CNY", 0) / total.get("CNY", 0)) * 100
+
+            return {
+                "total": total,
+                "settled": settled,
+                "unsettled": unsettled,
+                "settled_percentage": round(settled_percentage, 2),
+            }
+
+        return {
+            "total": None,
+            "settled": None,
+            "unsettled": None,
+            "settled_percentage": None,
+        }
 
 
 def get_bills(
@@ -38,10 +127,14 @@ def get_bills(
     with db_session() as db:
 
         # 获取用户有权限的所有空间
-        members = db.query(WorkspaceMember).filter(
-            WorkspaceMember.member_openid == openid,
-            WorkspaceMember.is_deleted == False,
-        ).all()
+        members = (
+            db.query(WorkspaceMember)
+            .filter(
+                WorkspaceMember.member_openid == openid,
+                WorkspaceMember.is_deleted == False,
+            )
+            .all()
+        )
 
         accessible_workspace_ids = [m.workspace_id for m in members]
 
@@ -116,10 +209,14 @@ def get_card_list(openid: str, workspace_ids: list = None) -> list:
     with db_session() as db:
 
         # 获取用户有权限的所有空间
-        members = db.query(WorkspaceMember).filter(
-            WorkspaceMember.member_openid == openid,
-            WorkspaceMember.is_deleted == False,
-        ).all()
+        members = (
+            db.query(WorkspaceMember)
+            .filter(
+                WorkspaceMember.member_openid == openid,
+                WorkspaceMember.is_deleted == False,
+            )
+            .all()
+        )
 
         accessible_workspace_ids = [m.workspace_id for m in members]
 
@@ -144,7 +241,9 @@ def get_card_list(openid: str, workspace_ids: list = None) -> list:
         return [{"card_last4": card, "count": count} for card, count in results]
 
 
-def batch_confirm_bills(workspace_id: str, file_id: str, bill_ids: list, openid: str) -> dict:
+def batch_confirm_bills(
+    workspace_id: str, file_id: str, bill_ids: list, openid: str
+) -> dict:
     """
     批量确认账单(pending → active)
 
@@ -162,26 +261,39 @@ def batch_confirm_bills(workspace_id: str, file_id: str, bill_ids: list, openid:
 
     with db_transaction() as db:
         # 获取文件记录
-        file_record = db.query(FileUpload).filter(
-            FileUpload.id == file_id,
-            FileUpload.workspace_id == workspace_id,
-            FileUpload.is_deleted == False,
-        ).first()
+        file_record = (
+            db.query(FileUpload)
+            .filter(
+                FileUpload.id == file_id,
+                FileUpload.workspace_id == workspace_id,
+                FileUpload.is_deleted == False,
+            )
+            .first()
+        )
 
         if not file_record:
             raise ValueError("文件记录不存在")
 
         # 批量更新账单状态
-        updated_count = db.query(Bill).filter(
-            Bill.id.in_(bill_ids),
-            Bill.file_upload_id == file_id,
-            Bill.workspace_id == workspace_id,
-            Bill.is_deleted == False,
-            Bill.status == "pending",
-        ).update({"status": "active", 'updated_at': datetime.now() }, synchronize_session=False)
+        updated_count = (
+            db.query(Bill)
+            .filter(
+                Bill.id.in_(bill_ids),
+                Bill.file_upload_id == file_id,
+                Bill.workspace_id == workspace_id,
+                Bill.is_deleted == False,
+                Bill.status == "pending",
+            )
+            .update(
+                {"status": "active", "updated_at": datetime.now()},
+                synchronize_session=False,
+            )
+        )
 
         # 获取更新后的账单列表
-        bills = db.query(Bill).filter(Bill.id.in_(bill_ids), Bill.is_deleted == False).all()
+        bills = (
+            db.query(Bill).filter(Bill.id.in_(bill_ids), Bill.is_deleted == False).all()
+        )
 
         logger.info(
             writeMessage(
@@ -204,11 +316,15 @@ def get_bill_detail(workspace_id: str, bill_id: str, openid: str) -> dict:
     require_workspace_permission(workspace_id, openid)
 
     with db_session() as db:
-        bill = db.query(Bill).filter(
-            Bill.id == bill_id,
-            Bill.workspace_id == workspace_id,
-            Bill.is_deleted == False,
-        ).first()
+        bill = (
+            db.query(Bill)
+            .filter(
+                Bill.id == bill_id,
+                Bill.workspace_id == workspace_id,
+                Bill.is_deleted == False,
+            )
+            .first()
+        )
 
         if not bill:
             raise ValueError("账单不存在")
@@ -216,17 +332,21 @@ def get_bill_detail(workspace_id: str, bill_id: str, openid: str) -> dict:
         return bill.to_dict()
 
 
-def update_bill(workspace_id: str, bill_id: str, openid: str, update_data: dict):
+def update_bill(openid: str, workspace_id: str, bill_id: str, update_data: dict):
     """更新账单"""
     # 校验权限(需要editor及以上)
     require_workspace_permission(workspace_id, openid, required_role="editor")
 
     with db_transaction() as db:
-        bill = db.query(Bill).filter(
-            Bill.id == bill_id,
-            Bill.workspace_id == workspace_id,
-            Bill.is_deleted == False,
-        ).first()
+        bill = (
+            db.query(Bill)
+            .filter(
+                Bill.id == bill_id,
+                Bill.workspace_id == workspace_id,
+                Bill.is_deleted == False,
+            )
+            .first()
+        )
 
         if not bill:
             raise ValueError("账单不存在")
@@ -254,6 +374,9 @@ def update_bill(workspace_id: str, bill_id: str, openid: str, update_data: dict)
         if "description" in update_data:
             bill.description = update_data["description"]
 
+        if "remark" in update_data:
+            bill.remark = update_data["remark"]
+
         if "amount_cny" in update_data:
             bill.amount_cny = update_data["amount_cny"]
 
@@ -272,7 +395,7 @@ def update_bill(workspace_id: str, bill_id: str, openid: str, update_data: dict)
         bill.updated_at = datetime.now()
         logger.info(writeMessage(f"账单更新成功 - bill_id: {bill_id}"))
 
-        return bill
+        return bill.to_dict()
 
 
 def batch_update_bills(workspace_id: str, updates: list, openid: str) -> dict:
@@ -308,15 +431,21 @@ def batch_update_bills(workspace_id: str, updates: list, openid: str) -> dict:
 
             try:
                 # 获取账单
-                bill = db.query(Bill).filter(
-                    Bill.id == bill_id,
-                    Bill.workspace_id == workspace_id,
-                    Bill.is_deleted == False,
-                ).first()
+                bill = (
+                    db.query(Bill)
+                    .filter(
+                        Bill.id == bill_id,
+                        Bill.workspace_id == workspace_id,
+                        Bill.is_deleted == False,
+                    )
+                    .first()
+                )
 
                 if not bill:
                     failed_count += 1
-                    results.append({"id": bill_id, "success": False, "message": "账单不存在"})
+                    results.append(
+                        {"id": bill_id, "success": False, "message": "账单不存在"}
+                    )
                     continue
 
                 # 更新字段
@@ -342,6 +471,9 @@ def batch_update_bills(workspace_id: str, updates: list, openid: str) -> dict:
                 if "description" in item:
                     bill.description = item["description"]
 
+                if "remark" in item:
+                    bill.remark = item["remark"]
+
                 if "amount_cny" in item:
                     bill.amount_cny = item["amount_cny"]
 
@@ -363,7 +495,9 @@ def batch_update_bills(workspace_id: str, updates: list, openid: str) -> dict:
 
             except Exception as e:
                 failed_count += 1
-                results.append({"bill_id": bill_id, "success": False, "message": str(e)})
+                results.append(
+                    {"bill_id": bill_id, "success": False, "message": str(e)}
+                )
 
     logger.info(
         writeMessage(
@@ -439,11 +573,13 @@ def batch_create_bills(workspace_id: str, bills_data: list, openid: str) -> dict
 
             except Exception as e:
                 failed_count += 1
-                results.append({
-                    "bill_id": bill_item.get("id", ""),
-                    "success": False,
-                    "message": str(e),
-                })
+                results.append(
+                    {
+                        "bill_id": bill_item.get("id", ""),
+                        "success": False,
+                        "message": str(e),
+                    }
+                )
 
     logger.info(
         writeMessage(
@@ -465,11 +601,15 @@ def delete_bill(workspace_id: str, bill_id: str, openid: str) -> None:
     require_workspace_permission(workspace_id, openid, required_role="editor")
 
     with db_transaction() as db:
-        bill = db.query(Bill).filter(
-            Bill.id == bill_id,
-            Bill.workspace_id == workspace_id,
-            Bill.is_deleted == False,
-        ).first()
+        bill = (
+            db.query(Bill)
+            .filter(
+                Bill.id == bill_id,
+                Bill.workspace_id == workspace_id,
+                Bill.is_deleted == False,
+            )
+            .first()
+        )
 
         if not bill:
             raise ValueError("账单不存在")
@@ -477,7 +617,7 @@ def delete_bill(workspace_id: str, bill_id: str, openid: str) -> None:
         # 软删除账单
         now = datetime.now()
         bill.is_deleted = True
-        bill.deleted_at = now 
+        bill.deleted_at = now
         bill.updated_at = now
 
         # 更新关联文件的账单数量

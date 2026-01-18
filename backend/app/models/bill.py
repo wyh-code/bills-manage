@@ -19,6 +19,7 @@ class Bill(BaseModel):
     amount_foreign = Column(DECIMAL(15, 2), nullable=True, comment='交易地金额')
     currency = Column(String(10), nullable=True, comment='记账币种')
     status = Column(String(20), nullable=False, default='active', comment='账单状态：active/inactive/pending/modified/payed')
+    remark = Column(Text, nullable=True, comment='结算备注')
     
     raw_line = Column(Text, nullable=False, comment='原始精炼字符串单行')
     

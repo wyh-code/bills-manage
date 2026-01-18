@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Table, Form, Select, Row, Col, DatePicker, Button, message, Spin, Modal, Typography } from 'antd';
+import { Table, Form, Select, Row, Col, DatePicker, Button, message, Spin, Modal, Typography, Input } from 'antd';
 import { billApi } from '@/api/bill';
 import { workspaceApi } from "@/api/workspace";
 import { getTotalCount } from '@/utils/utils';
@@ -18,6 +18,7 @@ export default () => {
   const [searchParams, setSearchParams] = useState({ page: 1, page_size: 10 });
   const [update, setUpdate] = useState(0);
   const [visible, setVisible] = useState(false);
+  const [remark, setRemark] = useState('');
 
   const fetchDatasource = useCallback(() => {
     setSpinning(true)
@@ -59,7 +60,7 @@ export default () => {
   const onConfirm = () => {
     billApi.batchUpdate({
       workspace_id: selectedRows[0].workspace_id,
-      data: selectedRows.map(item => ({ ...item, status: 'payed' }))
+      data: selectedRows.map(item => ({ ...item, status: 'payed', remark }))
     }).then(res => {
       setVisible(false);
       setSearchParams({ ...searchParams });
@@ -157,7 +158,10 @@ export default () => {
             rowSelection={{
               fixed: true,
               selectedRowKeys: selectedRows.map(item => item.id),
-              onChange: onRowSelectChange
+              onChange: onRowSelectChange,
+              getCheckboxProps: (record) => ({
+                disabled: datasource.filter(item => item.status === 'payed').map(item => item.id).includes(record.id)
+              }),
             }}
             pagination={{
               total,
@@ -186,11 +190,16 @@ export default () => {
             totalCount.length ? (
               totalCount.map(([currency, count]) => (
                 <Text strong key={currency}>
-                  {currency}: {(count as number).toFixed(2)}
+                  共计 {currency}: {(count as number).toFixed(2)}
                 </Text>
               ))
             ) : null
           }
+          <Input.TextArea
+            onChange={(e) => setRemark(e.target.value)}
+            style={{ margin: '8px 0px 4px' }}
+            placeholder="请输入结算备注"
+          />
         </div>
         <div className={styles.confirm}>
           {

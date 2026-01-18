@@ -13,11 +13,11 @@ export default () => {
 
   useEffect(() => {
     // 检查是否已登录
-    const token = authService.getToken();
-    if (token) {
-      navigate('/dashboard', { replace: true });
-      return;
-    }
+    // const token = authService.getToken();
+    // if (token) {
+    //   navigate('/dashboard', { replace: true });
+    //   return;
+    // }
 
     // 初始化微信登录
     if (isFetch.current) return;

@@ -17,7 +17,7 @@ ROW_FORMAT = "[发卡行,交易日,记账日,交易摘要,人民币金额,卡号
 def refine_bill_content(content, original_filename):
     """使用 DeepSeek 提纯账单信息"""
     try:
-        logger.info(writeMessage(f"开始调用 DeepSeek API 提纯:{original_filename}"))
+        logger.info(f"开始调用 DeepSeek API 提纯:{original_filename}")
 
         prompt = f"""请分析以下账单内容,提取符合条件的账单信息。
 
@@ -65,24 +65,20 @@ def refine_bill_content(content, original_filename):
         refined_content = response.choices[0].message.content
         usage = response.usage
         logger.info(
-            writeMessage(f"DeepSeek API 调用成功 - tokens: {usage.total_tokens}")
+            f"DeepSeek API 调用成功 - tokens: {usage.total_tokens}, refined_content: {refined_content}"
         )
 
-        return refined_content
+        return f"-{refined_content}"
 
     except Exception as e:
         logger.error(writeMessage(f"DeepSeek API 调用失败:{str(e)}"))
-        raise Exception(f"[DeepSeek 提纯失败: {str(e)}]\n\n原始内容:\n{content}")
+        return f"[DeepSeek 提纯失败: {str(e)}]\n\n原始内容:\n{content}"
 
 
 def convert_bills_to_json(refined_content):
     """将提纯后的账单文本转换为结构化 JSON"""
     try:
-        logger.info(
-            writeMessage(
-                f"开始调用 DeepSeek 转换为 JSON,内容长度:{len(refined_content)}"
-            )
-        )
+        logger.info(f"开始调用 DeepSeek 转换为 JSON,内容长度:{len(refined_content)}")
 
         prompt = f"""请将以下账单数据转换为 JSON 格式。
 
@@ -128,9 +124,7 @@ def convert_bills_to_json(refined_content):
 
         json_content_str = response.choices[0].message.content.strip()
         usage = response.usage
-        logger.info(
-            writeMessage(f"DeepSeek JSON 转换成功 - tokens: {usage.total_tokens}")
-        )
+        logger.info(f"DeepSeek JSON 转换成功 - tokens: {usage.total_tokens}")
 
         # 清理可能的 markdown 标记
         if json_content_str.startswith("```json"):

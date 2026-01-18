@@ -1,5 +1,6 @@
-import { message, Modal } from "antd";
+import { message, Modal, Input } from "antd";
 import Link from "@/component/Link";
+import TextBallonWithEllipse from "@/component/TextBallonWithEllipse";
 import { billApi } from '@/api/bill';
 import Status from "@/component/Status";
 import styles from './index.module.less'
@@ -8,7 +9,7 @@ export const getColumns = ({ setUpdate }) => {
 
   const onConfirm = (row) => {
     row.status = 'active';
-    billApi.update(row.workspace_id, row.id, row).then(res => {
+    billApi.update(row).then(res => {
       setUpdate(+new Date);
       message.success('账单状态已更新')
     })
@@ -18,18 +19,27 @@ export const getColumns = ({ setUpdate }) => {
     Modal.confirm({
       title: '确认支付账单',
       content: (
-        <div className={styles.confirm}>
-          <p key={row.id}>
-            <span>{row.bank}</span> -
-            <span>{row.card_last4}</span> -
-            <span>{row.trade_date}</span> -
-            <span>{`¥ ${row.amount_cny}` || `${row.currency} ${row.amount_foreign}`}</span>
-          </p>
-        </div>
+        <>
+          <div className={styles.confirm}>
+            <p key={row.id}>
+              <span>{row.bank}</span> -
+              <span>{row.card_last4}</span> -
+              <span>{row.trade_date}</span> -
+              <span>{`¥ ${row.amount_cny}` || `${row.currency} ${row.amount_foreign}`}</span>
+            </p>
+          </div>
+          <div>
+            <div style={{ margin: '10px 0px 4px', color: '#3e495c', fontSize: 12, fontWeight: 500 }}>备注：</div>
+            <Input.TextArea
+              placeholder="请输入备注"
+              onChange={(e) => row.remark = e.target.value}
+            />
+          </div>
+        </>
       ),
       onOk: () => {
         row.status = 'payed';
-        billApi.update(row.workspace_id, row.id, row).then(res => {
+        billApi.update(row).then(res => {
           setUpdate(+new Date);
           message.success('账单状态已更新')
         })
@@ -78,6 +88,7 @@ export const getColumns = ({ setUpdate }) => {
       title: '描述',
       dataIndex: 'description',
       width: 200,
+      render: description => <TextBallonWithEllipse line={1} text={description} />
     },
     {
       title: '状态',
@@ -85,6 +96,12 @@ export const getColumns = ({ setUpdate }) => {
       dataIndex: 'status',
       key: 'status',
       render: (value) => <Status type={value} />
+    },
+    {
+      title: '结算备注',
+      dataIndex: 'remark',
+      width: 200,
+      render: remark => <TextBallonWithEllipse line={1} text={remark} />
     },
     {
       title: '操作',

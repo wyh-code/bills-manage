@@ -21,7 +21,7 @@ class FileUpload(BaseModel):
     status = Column(String(20), nullable=False, default='active', comment='文件状态：active/inactive/processing/completed/failed')
     
     __table_args__ = (
-        Index('idx_workspace_file_hash', 'workspace_id', 'file_hash', 'is_deleted', 'status', unique=True),
+        Index('idx_workspace_file_hash', 'id', 'workspace_id', 'file_hash', 'is_deleted', 'status', unique=True),
     )
     
     __repr_fields__ = ['id', 'original_filename', 'bills_count']

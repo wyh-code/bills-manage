@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import Login from '@/pages/Login/index';
+import VerifyInvitation from '@/pages/VerifyInvitation/index';
 import Forbidden from '@/pages/Forbidden';
 import NotFound from '@/pages/Notfound';
 import { ProtectedRoute } from '@/auth/ProtectedRoute';
@@ -13,6 +14,10 @@ export const router = createBrowserRouter([
   {
     path: '/login',
     element: <Login />,
+  },
+  {
+    path: '/invitation',
+    element: <VerifyInvitation />,
   },
   {
     path: '/',

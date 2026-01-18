@@ -27,6 +27,29 @@ export interface BillListParams {
   page_size?: number;
 }
 
+export interface Settlement {
+  id: string;
+  bank: string;
+  card_last4: string;
+  settled_at: string;
+  amount_cny: number | null;
+  amount_foreign: number | null;
+  currency: string;
+  settler: {
+    openid: string;
+    nickname: string | null;
+  };
+  note: string;
+  status: string;
+}
+
+export interface SettlementSummary {
+  total: Record<string, number>;
+  settled: Record<string, number>;
+  unsettled: Record<string, number>;
+  settled_percentage: number;
+}
+
 export interface BillListResponse {
   total: number;
   page: number;
@@ -161,12 +184,8 @@ class BillAPI {
   /**
    * 更新账单
    */
-  async update(workspaceId: string, billId: string, data: Partial<Bill>): Promise<Bill> {
-    const response = await apiClient.put<ApiResponse<Bill>>(
-      `/bills/${billId}`,
-      data,
-      { params: { workspace_id: workspaceId } }
-    );
+  async update(data: Partial<Bill>): Promise<Bill> {
+    const response = await apiClient.put<ApiResponse<Bill>>('/bills', data);
 
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.message || '更新账单失败');
@@ -218,6 +237,27 @@ class BillAPI {
     if (!response.data.success) {
       throw new Error(response.data.message || '删除账单失败');
     }
+  }
+
+  /**
+   * 获取结算汇总统计
+   */
+  async getSettlementSummary(workspace_ids?: string[]): Promise<SettlementSummary> {
+    const params: any = {};
+    if (workspace_ids && workspace_ids.length > 0) {
+      params.workspace_ids = workspace_ids.join(',');
+    }
+
+    const response = await apiClient.get<ApiResponse<SettlementSummary>>(
+      '/bills/settlement/summary',
+      { params }
+    );
+
+    if (!response.data.success || !response.data.data) {
+      throw new Error(response.data.message || '获取结算汇总失败');
+    }
+
+    return response.data.data;
   }
 }
 

@@ -9,6 +9,7 @@ export interface User {
   openid?: string;
   unionid?: string;
   headimgurl: string;
+  status: string;
 }
 
 

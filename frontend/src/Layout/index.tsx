@@ -19,21 +19,6 @@ export default function Layout() {
   ];
 
   const userMenuItems = [
-    // {
-    //   key: 'logout',
-    //   icon: <Avatar
-    //     size={32}
-    //     src={user?.headimgurl}
-    //     icon={<UserOutlined />}
-    //   />,
-    //   label: (
-    //     <div>
-    //       <span className={styles.username}>
-    //         {user?.nickname || user?.username || `用户${user?.id}`}
-    //       </span>
-    //     </div>
-    //   ),
-    // },
     {
       key: 'logout',
       icon: <LogoutOutlined />,
@@ -44,7 +29,6 @@ export default function Layout() {
       },
     },
   ];
-
   return (
     <AntLayout className={styles.layout}>
       <Header className={styles.header}>
@@ -58,17 +42,19 @@ export default function Layout() {
           onClick={({ key }) => navigate(key)}
           className={styles.menu}
         />
-        <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-          <div className={styles.user}>
-            <Avatar
-              size={32}
-              src={user?.headimgurl}
-              icon={<UserOutlined />}
-            />
-          </div>
-        </Dropdown>
+        <div className={styles.userActions}>
+          <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+            <div className={styles.user}>
+              <Avatar
+                size={32}
+                src={user?.headimgurl}
+                icon={<UserOutlined />}
+              />
+            </div>
+          </Dropdown>
+        </div>
       </Header>
-      <Content className={styles.content}>
+       <Content className={styles.content}>
         <Outlet />
       </Content>
     </AntLayout>

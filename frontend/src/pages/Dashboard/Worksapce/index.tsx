@@ -1,16 +1,16 @@
 import { useEffect, useState } from "react";
 import { Button, Modal, Form, Input, message, Spin } from "antd";
+import { workspaceApi, Workspace } from "@/api/workspace";
+import authService from '@/auth/authService';
+import { formateTime, formateUser } from '@/utils/utils';
 import Empty from "@/component/Empty";
-import styles from './index.module.less';
 import Link from "@/component/Link";
 import Share from "@/component/Share";
 import TextBallonWithEllipse from "@/component/TextBallonWithEllipse";
 import { WORKSTACE_STATUS } from '@/common/const';
-import { workspaceApi, Workspace } from "@/api/workspace";
-import authService from '@/auth/authService';
-import { formateTime, formateUser } from '@/utils/utils'
+import styles from './index.module.less';
 
-export default ({ joined }) => {
+export default ({ joined }: { joined: number }) => {
   const [open, setOpen] = useState(false);
   const [formData, setData] = useState<any>({});
   const [spinning, setSpinning] = useState(false);
@@ -48,9 +48,6 @@ export default ({ joined }) => {
     } else {
       updateWorkspace({ ...formData, ...values })
     }
-  }
-  const onFinishFailed = () => {
-    console.log('onFinishFailed')
   }
 
   const updateWorkspace = (newWorkspace) => {
@@ -114,28 +111,20 @@ export default ({ joined }) => {
                     <div className={styles.title}>
                       <div className={styles.name}>
                         <TextBallonWithEllipse text={item.name} line={1} />
-                        {/* {item.name} */}
-                        </div>
+                      </div>
                       <div
                         className={`${styles.status} ${item.status === 'active' ? styles['status-green'] : styles['status-grey']}`}
                       >
-                        {console.log('item.status: ', item.status)}
                         {WORKSTACE_STATUS[item.status]}
                       </div>
                     </div>
                   </div>
                   <div className={styles.detail}>
-                    {/* <div className={styles.item}>
-                    <div className={styles.label}>空间ID:</div>
-                    <div className={styles.value}>
-                      <CopyText text={item.id} />
-                    </div>
-                  </div> */}
                     <div className={styles.item}>
                       <div className={styles.label}>负责人:</div>
-                       <div className={styles.value}>
+                      <div className={styles.value}>
                         <TextBallonWithEllipse text={formateUser([item.owner])} line={1} />
-                       </div>
+                      </div>
                     </div>
                     <div className={styles.item}>
                       <div className={styles.label}>成员:</div>
@@ -155,15 +144,14 @@ export default ({ joined }) => {
                     </div>
                   </div>
                 </div>
-                {/* 只有负责人可以操作 */}
                 <div className={`${styles.footer} ${user.openid !== item.owner.openid ? styles.disabled : ''}`}>
-                  <Share 
+                  <Share
                     workspaceId={item.id}
-                    className={`${item.status !== 'active' && styles.disabled}`} 
-                    disabled={user.openid !== item.owner.openid || item.status !== 'active'} 
+                    className={`${item.status !== 'active' && styles.disabled}`}
+                    disabled={user.openid !== item.owner.openid || item.status !== 'active'}
                   />
                   <div className={styles.right}>
-                    <Link className={`${item.status !== 'active' && styles.disabled}`}  onClick={() => onEdit(item)}>编辑</Link>
+                    <Link className={`${item.status !== 'active' && styles.disabled}`} onClick={() => onEdit(item)}>编辑</Link>
                     {
                       item.status === 'active' ? (
                         <Link style={{ marginLeft: 8 }} onClick={() => onStatusChange(item, 'inactive')}>冻结</Link>
@@ -171,10 +159,10 @@ export default ({ joined }) => {
                         <Link style={{ marginLeft: 8 }} onClick={() => onStatusChange(item, 'active')}>恢复</Link>
                       )
                     }
-                    <Link 
+                    <Link
                       className={`${item.status !== 'active' && styles.disabled}`}
-                      type="red" 
-                      style={{ marginLeft: 8 }} 
+                      type="red"
+                      style={{ marginLeft: 8 }}
                       onClick={() => onDelete(item)}
                     >
                       删除
@@ -196,7 +184,6 @@ export default ({ joined }) => {
           <Form
             form={form}
             onFinish={onFinish}
-            onFinishFailed={onFinishFailed}
             layout="vertical"
           >
             <Form.Item

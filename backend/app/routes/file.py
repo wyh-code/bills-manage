@@ -1,12 +1,14 @@
 """文件管理路由"""
+
 from flask import Blueprint, request, jsonify, send_file, make_response
 from urllib.parse import quote
 from app.config import Config
-from app.utils import get_logger, jwt_required, allowed_file, writeMessage
+from app.utils import jwt_required, allowed_file, writeMessage, get_logger
 from app.services import file_service
 
 logger = get_logger(__name__)
 file_bp = Blueprint("file", __name__, url_prefix="/api/files")
+
 
 @file_bp.route("/upload", methods=["POST"])
 @jwt_required
@@ -16,9 +18,11 @@ def upload_file():
         workspace_id = request.args.get("workspace_id")
 
         if not workspace_id:
-            return jsonify({"success": False, "message": "workspace_id参数不能为空"}), 400
+            return (
+                jsonify({"success": False, "message": "workspace_id参数不能为空"}),
+                400,
+            )
 
-        # 检查文件
         if "file" not in request.files:
             return jsonify({"success": False, "message": "未找到上传的文件"}), 400
 
@@ -28,22 +32,26 @@ def upload_file():
             return jsonify({"success": False, "message": "文件名不能为空"}), 400
 
         if not allowed_file(file.filename):
-            return jsonify({
-                "success": False,
-                "message": f"不支持的文件类型，仅支持: {Config.ALLOWED_EXTENSIONS}",
-            }), 400
+            return (
+                jsonify(
+                    {
+                        "success": False,
+                        "message": f"不支持的文件类型,仅支持: {Config.ALLOWED_EXTENSIONS}",
+                    }
+                ),
+                400,
+            )
 
         result = file_service.upload_and_parse_file(
-            workspace_id=workspace_id,
-            openid=request.openid,
-            file=file
+            workspace_id=workspace_id, openid=request.openid, file=file
         )
 
-        return jsonify({
-            "success": True, 
-            "status": result["status"], 
-            "data": result["data"]
-        }), 200
+        return (
+            jsonify(
+                {"success": True, "status": result["status"], "data": result["data"]}
+            ),
+            200,
+        )
 
     except ValueError as e:
         return jsonify({"success": False, "message": str(e)}), 403
@@ -52,88 +60,104 @@ def upload_file():
         return jsonify({"success": False, "message": str(e)}), 500
 
 
-@file_bp.route('/<string:file_id>/progress', methods=['GET'])
+@file_bp.route("/<string:file_id>/progress", methods=["GET"])
 @jwt_required
 def get_file_progress(file_id):
     """获取文件处理进度"""
     try:
-        workspace_id = request.args.get('workspace_id')
-        
+        workspace_id = request.args.get("workspace_id")
+
         if not workspace_id:
-            return jsonify({
-                'success': False,
-                'message': 'workspace_id参数不能为空'
-            }), 400
-        
+            return (
+                jsonify({"success": False, "message": "workspace_id参数不能为空"}),
+                400,
+            )
+
         result = file_service.get_file_progress(
-            workspace_id=workspace_id,
-            file_id=file_id,
-            openid=request.openid
+            workspace_id=workspace_id, file_id=file_id, openid=request.openid
         )
-        
-        return jsonify({
-            'success': True,
-            'data': result
-        }), 200
-        
+
+        return jsonify({"success": True, "data": result}), 200
+
     except ValueError as e:
-        logger.error(writeMessage(f"获取文件进度 - ValueError - file_id: {file_id}, error: {str(e)}"))
-        return jsonify({
-            'success': False,
-            'message': str(e)
-        }), 404
-    except Exception as e:
-        logger.error(writeMessage(f"获取文件进度异常 - file_id: {file_id}, error: {str(e)}"))
-        return jsonify({
-            'success': False,
-            'message': str(e)
-        }), 500
-
-
-@file_bp.route('/<string:file_id>', methods=['GET'])
-@jwt_required
-def get_file(file_id):
-    """
-    文件预览/下载接口
-    支持两种认证方式：
-    1. Authorization: Bearer <token> （优先）
-    2. URL参数 ?token=xxx （用于浏览器直接访问）
-    """
-    try:
-        workspace_id = request.args.get('workspace_id')
-        is_download = request.args.get('download', 'false').lower() == 'true'
-        
-        if not workspace_id:
-            return jsonify({'success': False, 'message': 'workspace_id参数不能为空'}), 400
-        
-        # openid 已由 @jwt_required 注入到 request.openid
-        file_path, filename, mime_type = file_service.get_file_for_view(
-            workspace_id=workspace_id,
-            file_id=file_id,
-            openid=request.openid
-        )
-        
-        response = make_response(
-            send_file(
-                file_path,
-                mimetype=mime_type,
-                conditional=True
+        logger.error(
+            writeMessage(
+                f"获取文件进度 - ValueError - file_id: {file_id}, error: {str(e)}"
             )
         )
-        
-        # 使用 RFC 5987 编码支持中文文件名
-        encoded_filename = quote(filename)
-        
-        if is_download:
-            response.headers['Content-Disposition'] = f"attachment; filename*=UTF-8''{encoded_filename}"
-        else:
-            response.headers['Content-Disposition'] = f"inline; filename*=UTF-8''{encoded_filename}"
-        
-        return response
-        
-    except ValueError as e:
-        logger.error(writeMessage(f"获取文件异常 - file_id: {file_id}, error: {str(e)}"))
-        return jsonify({'success': False, 'message': str(e)}), 404
+        return jsonify({"success": False, "message": str(e)}), 404
     except Exception as e:
-        logger.error(writeMessage(f"获取文件异常 - file_id: {file_id}, error: {str(e)}"))
-        return jsonify({'success': False, 'message': str(e)}), 500
+        logger.error(
+            writeMessage(f"获取文件进度异常 - file_id: {file_id}, error: {str(e)}")
+        )
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@file_bp.route("/<string:file_id>", methods=["GET"])
+@jwt_required
+def get_file(file_id):
+    """文件预览/下载接口"""
+    try:
+        workspace_id = request.args.get("workspace_id")
+        is_download = request.args.get("download", "false").lower() == "true"
+
+        if not workspace_id:
+            return (
+                jsonify({"success": False, "message": "workspace_id参数不能为空"}),
+                400,
+            )
+
+        file_path, filename, mime_type = file_service.get_file_for_view(
+            workspace_id=workspace_id, file_id=file_id, openid=request.openid
+        )
+
+        response = make_response(
+            send_file(file_path, mimetype=mime_type, conditional=True)
+        )
+
+        encoded_filename = quote(filename)
+
+        if is_download:
+            response.headers["Content-Disposition"] = (
+                f"attachment; filename*=UTF-8''{encoded_filename}"
+            )
+        else:
+            response.headers["Content-Disposition"] = (
+                f"inline; filename*=UTF-8''{encoded_filename}"
+            )
+
+        return response
+
+    except ValueError as e:
+        logger.error(
+            writeMessage(f"获取文件异常 - file_id: {file_id}, error: {str(e)}")
+        )
+        return jsonify({"success": False, "message": str(e)}), 404
+    except Exception as e:
+        logger.error(
+            writeMessage(f"获取文件异常 - file_id: {file_id}, error: {str(e)}")
+        )
+        return jsonify({"success": False, "message": str(e)}), 500
+
+
+@file_bp.route("/records", methods=["GET"])
+@jwt_required
+def get_file_records():
+    """
+    获取文件上传记录
+    GET /api/files/records?workspace_ids=xxx
+    """
+    try:
+        workspace_ids = request.args.get("workspace_ids")
+
+        records = file_service.get_file_records(
+            openid=request.openid, workspace_ids=workspace_ids, 
+        )
+
+        return jsonify({"success": True, "data": records}), 200
+
+    except ValueError as e:
+        return jsonify({"success": False, "message": str(e)}), 403
+    except Exception as e:
+        logger.error(writeMessage(f"获取文件记录异常 - error: {str(e)}"))
+        return jsonify({"success": False, "message": str(e)}), 500
