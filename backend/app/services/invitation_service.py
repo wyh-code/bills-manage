@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from app.models import Invitation, InvitationUse, WorkspaceMember, User
 from app.database import db_session, db_transaction
 from app.services.workspace_service import get_workspace_detail
-from app.utils import get_logger, writeMessage, check_workspace_permission
+from app.utils import get_logger, check_workspace_permission
 
 logger = get_logger(__name__)
 
@@ -89,9 +89,7 @@ def create_invitation(
                     f"{base_url}/dashboard?join={existing.token}&type=workspace"
                 )
             logger.info(
-                writeMessage(
-                    f"返回已有邀请码 - type: {invitation_type}, token: {existing.token}"
-                )
+                f"返回已有邀请码 - type: {invitation_type}, token: {existing.token}"
             )
             return result
 
@@ -117,10 +115,8 @@ def create_invitation(
         db.refresh(invitation)
 
         logger.info(
-            writeMessage(
-                f"创建邀请成功 - type: {invitation_type}, "
-                f"workspace_id: {workspace_id}, role: {role}, creator: {openid}"
-            )
+            f"创建邀请成功 - type: {invitation_type}, "
+            f"workspace_id: {workspace_id}, role: {role}, creator: {openid}"
         )
 
         result = invitation.to_dict()
@@ -199,9 +195,7 @@ def join_by_invitation(token: str, openid: str) -> dict:
             invitation.used_count += 1
             invitation.updated_at = now
 
-            logger.info(
-                writeMessage(f"平台邀请激活用户 - user: {openid}, token: {token}")
-            )
+            logger.info(f"平台邀请激活用户 - user: {openid}, token: {token}")
 
             return {
                 "type": "platform",
@@ -268,10 +262,8 @@ def join_by_invitation(token: str, openid: str) -> dict:
             )
 
             logger.info(
-                writeMessage(
-                    f"用户通过邀请加入空间 - workspace_id: {invitation.workspace_id}, "
-                    f"user: {openid}, role: {invitation.role}"
-                )
+                f"用户通过邀请加入空间 - workspace_id: {invitation.workspace_id}, "
+                f"user: {openid}, role: {invitation.role}"
             )
 
             return {
@@ -391,7 +383,7 @@ def get_invitation_uses(openid: str, limit: int = None) -> list:
             query = query.limit(limit)
 
         uses = query.all()
-        logger.info(writeMessage(f"len(uses): {len(uses)}"))
+        logger.info(f"len(uses): {len(uses)}")
         # 组装结果
         return [
             {

@@ -3,7 +3,7 @@
 import json
 from openai import OpenAI
 from app.config import Config
-from app.utils import get_logger, writeMessage
+from app.utils import get_logger
 
 logger = get_logger(__name__)
 
@@ -71,7 +71,7 @@ def refine_bill_content(content, original_filename):
         return f"-{refined_content}"
 
     except Exception as e:
-        logger.error(writeMessage(f"DeepSeek API 调用失败:{str(e)}"))
+        logger.error(f"DeepSeek API 调用失败:{str(e)}")
         return f"[DeepSeek 提纯失败: {str(e)}]\n\n原始内容:\n{content}"
 
 
@@ -135,10 +135,10 @@ def convert_bills_to_json(refined_content):
             json_content_str = json_content_str[:-3]
 
         json_content_str = json_content_str.strip()
-        logger.info(writeMessage(f"清理后的 JSON 字符:{json_content_str}"))
+        logger.info(f"清理后的 JSON 字符:{json_content_str}")
         json_content_data = json.loads(json_content_str)
         return json_content_data.get("bills", [])
 
     except Exception as e:
-        logger.error(writeMessage(f"DeepSeek JSON 转换失败:{str(e)}"))
+        logger.error(f"DeepSeek JSON 转换失败:{str(e)}")
         raise Exception(f"DeepSeek JSON 转换失败:{str(e)}")

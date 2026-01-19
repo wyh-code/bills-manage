@@ -6,7 +6,6 @@ from datetime import datetime
 from app.models import FileUpload, Bill, User, Workspace, WorkspaceMember
 from app.database import SessionLocal, db_session, db_transaction
 from app.utils import (
-    writeMessage,
     get_logger,
     refine_bill_content,
     convert_bills_to_json,
@@ -93,70 +92,84 @@ def process_file_async(
     file_id: str, workspace_id: str, raw_content: str, original_filename: str
 ):
     """异步处理文件精炼"""
-    logger.info(writeMessage(f"开始精炼 - file_id: {file_id}"))
+    logger.info(f"开始精炼 - file_id: {file_id}")
 
     try:
         refined_content = refine_bill_content(raw_content, original_filename)
-
+        logger.info(
+            f"初步提取refined_content完成 - file_id: {file_id}, refined_content: {refined_content}"
+        )
         # 检查精炼结果是否为错误信息
         if refined_content.startswith("["):
             raise ValueError(refined_content)
 
-        if not refined_content:
-            raise ValueError("精炼结果为空")
+        if not refined_content or refined_content == "-None":
+            db = SessionLocal()
 
-        bills_data_json_list = convert_bills_to_json(refined_content)
-        bills_data = [clean_bill_data(bill) for bill in bills_data_json_list]
-
-        logger.info(f"精炼完成 - file_id: {file_id}, bills: {len(bills_data)}")
-
-        # 保存到数据库
-        db = SessionLocal()
-        try:
             file_record = db.query(FileUpload).filter(FileUpload.id == file_id).first()
             if not file_record:
                 raise ValueError(f"文件记录不存在 - file_id: {file_id}")
 
-            now = datetime.now()
-
-            for bill_item in bills_data:
-                bill = Bill(
-                    file_upload_id=file_record.id,
-                    workspace_id=workspace_id,
-                    bank=bill_item.get("bank"),
-                    trade_date=bill_item.get("trade_date"),
-                    record_date=bill_item.get("record_date"),
-                    description=bill_item.get("description"),
-                    amount_cny=bill_item.get("amount_cny"),
-                    card_last4=bill_item.get("card_last4"),
-                    amount_foreign=bill_item.get("amount_foreign"),
-                    currency=bill_item.get("currency"),
-                    raw_line=bill_item.get("raw_line", ""),
-                    status="pending",
-                )
-                db.add(bill)
-
             file_record.refined_content = refined_content
-            file_record.bills_count = len(bills_data)
+            file_record.bills_count = 0
             file_record.status = "completed"
-            file_record.updated_at = now
+            file_record.updated_at = datetime.now()
 
             db.commit()
-            logger.info(
-                writeMessage(
-                    f"异步处理完成 - file_id: {file_id}, bills: {len(bills_data)}"
-                )
-            )
+            logger.info(f"异步处理完成 - file_id: {file_id}, 精炼结果为空")
+        else:
+            bills_data_json_list = convert_bills_to_json(refined_content)
+            bills_data = [clean_bill_data(bill) for bill in bills_data_json_list]
 
-        except Exception as e:
-            db.rollback()
-            logger.error(f"数据库操作失败 - file_id: {file_id}, error: {str(e)}")
-            raise ValueError(f"数据库操作失败 - file_id: {file_id}, error: {str(e)}")
-        finally:
-            db.close()
+            logger.info(f"精炼完成 - file_id: {file_id}, bills: {len(bills_data)}")
+
+            # 保存到数据库
+            db = SessionLocal()
+            try:
+                file_record = (
+                    db.query(FileUpload).filter(FileUpload.id == file_id).first()
+                )
+                if not file_record:
+                    raise ValueError(f"文件记录不存在 - file_id: {file_id}")
+
+                now = datetime.now()
+
+                for bill_item in bills_data:
+                    bill = Bill(
+                        file_upload_id=file_record.id,
+                        workspace_id=workspace_id,
+                        bank=bill_item.get("bank"),
+                        trade_date=bill_item.get("trade_date"),
+                        record_date=bill_item.get("record_date"),
+                        description=bill_item.get("description"),
+                        amount_cny=bill_item.get("amount_cny"),
+                        card_last4=bill_item.get("card_last4"),
+                        amount_foreign=bill_item.get("amount_foreign"),
+                        currency=bill_item.get("currency"),
+                        raw_line=bill_item.get("raw_line", ""),
+                        status="pending",
+                    )
+                    db.add(bill)
+
+                file_record.refined_content = refined_content
+                file_record.bills_count = len(bills_data)
+                file_record.status = "completed"
+                file_record.updated_at = now
+
+                db.commit()
+                logger.info(f"异步处理完成 - file_id: {file_id}, bills: {len(bills_data)}")
+
+            except Exception as e:
+                db.rollback()
+                logger.error(f"数据库操作失败 - file_id: {file_id}, error: {str(e)}")
+                raise ValueError(
+                    f"数据库操作失败 - file_id: {file_id}, error: {str(e)}"
+                )
+            finally:
+                db.close()
 
     except Exception as e:
-        logger.error(writeMessage(f"精炼失败 - file_id: {file_id}, error: {str(e)}"))
+        logger.error(f"精炼失败 - file_id: {file_id}, error: {str(e)}")
 
         # 更新文件状态为失败
         db = SessionLocal()
@@ -180,11 +193,7 @@ def process_file_async(
                 file_record.updated_at = datetime.now()
                 db.commit()
         except Exception as update_error:
-            logger.error(
-                writeMessage(
-                    f"更新失败状态异常 - file_id: {file_id}, error: {str(update_error)}"
-                )
-            )
+            logger.error(f"更新失败状态异常 - file_id: {file_id}, error: {str(update_error)}")
         finally:
             db.close()
 
@@ -260,9 +269,7 @@ def upload_and_parse_file(workspace_id: str, openid: str, file) -> dict:
         db.flush()
         db.refresh(file_record)
 
-        logger.info(
-            writeMessage(f"文件上传成功 - file_id: {file_record.id}, 开始异步精炼")
-        )
+        logger.info(f"文件上传成功 - file_id: {file_record.id}, 开始异步精炼")
 
         file_id = file_record.id
 
@@ -318,7 +325,7 @@ def get_file_progress(workspace_id: str, file_id: str, openid: str) -> dict:
                 )
                 result["bills"] = [bill.to_dict() for bill in bills]
         except Exception as e:
-            logger.error(writeMessage(str(e)))
+            logger.error(str(e))
 
         return result
 
@@ -344,11 +351,7 @@ def get_file_for_view(workspace_id: str, file_id: str, openid: str) -> tuple:
         absolute_path = get_absolute_path(file_record.saved_path)
 
         if not os.path.exists(absolute_path):
-            logger.warning(
-                writeMessage(
-                    f"文件物理路径不存在 - file_id: {file_id}, path: {absolute_path}"
-                )
-            )
+            logger.warning(f"文件物理路径不存在 - file_id: {file_id}, path: {absolute_path}")
             raise ValueError("文件物理文件缺失")
 
         file_ext = get_file_extension(file_record.original_filename)
@@ -357,7 +360,7 @@ def get_file_for_view(workspace_id: str, file_id: str, openid: str) -> tuple:
         return absolute_path, file_record.original_filename, mime_type
 
 
-def get_file_records(openid: str, workspace_ids=None) -> list:
+def get_file_records(openid: str, workspace_ids=None, page=1, page_size=10) -> list:
     """获取文件上传记录"""
 
     with db_session() as db:
@@ -379,16 +382,22 @@ def get_file_records(openid: str, workspace_ids=None) -> list:
                 wid for wid in workspace_ids if wid in accessible_workspace_ids
             ]
 
+        # 分页查询
+        offset = (page - 1) * page_size
+        query = db.query(FileUpload)
         files = (
-            db.query(FileUpload)
-            .filter(
+            query.filter(
                 FileUpload.workspace_id.in_(accessible_workspace_ids),
                 FileUpload.is_deleted == False,
                 FileUpload.status != "failed",
             )
             .order_by(FileUpload.created_at.desc())
+            .limit(page_size)
+            .offset(offset)
             .all()
         )
+        # 统计总数
+        total = query.count()
 
         records = []
         for file in files:
@@ -414,6 +423,7 @@ def get_file_records(openid: str, workspace_ids=None) -> list:
             )
 
             total_amount = {}
+            bills_list = []
             for bill in bills:
                 if bill.amount_cny:
                     total_amount["CNY"] = total_amount.get("CNY", 0) + float(
@@ -423,6 +433,7 @@ def get_file_records(openid: str, workspace_ids=None) -> list:
                     total_amount[bill.currency] = total_amount.get(
                         bill.currency, 0
                     ) + float(bill.amount_foreign)
+                bills_list.append(bill.to_dict())
 
             records.append(
                 {
@@ -439,13 +450,13 @@ def get_file_records(openid: str, workspace_ids=None) -> list:
                     "upload_time": (
                         file.created_at.isoformat() if file.created_at else None
                     ),
-                    "bills_count": file.bills_count,
+                    "bills_count": len(bills_list),
                     "total_amount": total_amount,
-                    "bills": [bill.to_dict() for bill in bills],
+                    "bills": bills_list,
                 }
             )
 
-        return records
+        return records, total
 
 
 def _get_mime_type(file_ext: str) -> str:

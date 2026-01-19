@@ -3,7 +3,7 @@
 from datetime import datetime
 from app.models import Workspace, WorkspaceMember, User, FileUpload, Bill
 from app.database import db_session, db_transaction
-from app.utils import get_logger, writeMessage
+from app.utils import get_logger
 
 logger = get_logger(__name__)
 
@@ -73,11 +73,7 @@ def create_workspace(openid: str, name: str, description: str = None) -> dict:
         )
         db.add(member)
 
-        logger.info(
-            writeMessage(
-                f"创建空间成功 - workspace_id: {workspace.id}, owner: {openid}"
-            )
-        )
+        logger.info(f"创建空间成功 - workspace_id: {workspace.id}, owner: {openid}")
         return workspace.to_dict()
 
 
@@ -218,7 +214,7 @@ def update_workspace(
 
         workspace.updated_at = datetime.now()
 
-        logger.info(writeMessage(f"更新空间成功 - workspace_id: {workspace_id}"))
+        logger.info(f"更新空间成功 - workspace_id: {workspace_id}")
         return workspace.to_dict()
 
 
@@ -280,10 +276,8 @@ def delete_workspace(workspace_id: str, openid: str) -> dict:
         )
 
         logger.info(
-            writeMessage(
-                f"删除空间成功 - workspace_id: {workspace_id}, "
-                f"成员: {member_count}, 文件: {file_count}, 账单: {bill_count}"
-            )
+            f"删除空间成功 - workspace_id: {workspace_id}, "
+            f"成员: {member_count}, 文件: {file_count}, 账单: {bill_count}"
         )
 
         return {

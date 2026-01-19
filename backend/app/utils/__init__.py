@@ -1,7 +1,7 @@
 from .jwt_util import generate_token, verify_token
 from .decorators import jwt_required
 from .parse import parse_file
-from .logger import get_logger, writeMessage
+from .logger import get_logger
 from .trace_util import get_trace_id, generate_trace_id
 from .deepseek_util import refine_bill_content, convert_bills_to_json
 from .permission_checker import check_workspace_permission, require_workspace_permission
@@ -20,7 +20,6 @@ __all__ = [
     "verify_token",
     "jwt_required",
     "get_logger",
-    "writeMessage",
     "allowed_file",
     "save_uploaded_file",
     "get_absolute_path",

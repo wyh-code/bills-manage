@@ -21,7 +21,7 @@ class Bill(BaseModel):
     status = Column(String(20), nullable=False, default='active', comment='账单状态：active/inactive/pending/modified/payed')
     remark = Column(Text, nullable=True, comment='结算备注')
     
-    raw_line = Column(Text, nullable=False, comment='原始精炼字符串单行')
+    raw_line = Column(Text, nullable=True, comment='原始精炼字符串单行')
     
     __table_args__ = (
         Index('idx_workspace_trade_date', 'workspace_id', 'trade_date', 'is_deleted'),

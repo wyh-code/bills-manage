@@ -3,7 +3,7 @@
 from flask import Blueprint, request, jsonify, send_file, make_response
 from urllib.parse import quote
 from app.config import Config
-from app.utils import jwt_required, allowed_file, writeMessage, get_logger
+from app.utils import jwt_required, allowed_file, get_logger
 from app.services import file_service
 
 logger = get_logger(__name__)
@@ -56,7 +56,7 @@ def upload_file():
     except ValueError as e:
         return jsonify({"success": False, "message": str(e)}), 403
     except Exception as e:
-        logger.error(writeMessage(f"文件上传接口异常 - error: {str(e)}"))
+        logger.error(f"文件上传接口异常 - error: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
@@ -80,16 +80,10 @@ def get_file_progress(file_id):
         return jsonify({"success": True, "data": result}), 200
 
     except ValueError as e:
-        logger.error(
-            writeMessage(
-                f"获取文件进度 - ValueError - file_id: {file_id}, error: {str(e)}"
-            )
-        )
+        logger.error(f"获取文件进度 - ValueError - file_id: {file_id}, error: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 404
     except Exception as e:
-        logger.error(
-            writeMessage(f"获取文件进度异常 - file_id: {file_id}, error: {str(e)}")
-        )
+        logger.error(f"获取文件进度异常 - file_id: {file_id}, error: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
@@ -129,14 +123,10 @@ def get_file(file_id):
         return response
 
     except ValueError as e:
-        logger.error(
-            writeMessage(f"获取文件异常 - file_id: {file_id}, error: {str(e)}")
-        )
+        logger.error(f"获取文件异常 - file_id: {file_id}, error: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 404
     except Exception as e:
-        logger.error(
-            writeMessage(f"获取文件异常 - file_id: {file_id}, error: {str(e)}")
-        )
+        logger.error(f"获取文件异常 - file_id: {file_id}, error: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
@@ -149,15 +139,25 @@ def get_file_records():
     """
     try:
         workspace_ids = request.args.get("workspace_ids")
+        page = int(request.args.get("page", 1))
+        page_size = int(request.args.get("page_size", 10))
 
-        records = file_service.get_file_records(
-            openid=request.openid, workspace_ids=workspace_ids, 
+        # 参数校验
+        if page < 1:
+            page = 1
+        if page_size < 1 or page_size > 100:
+            page_size = 10
+        records, total = file_service.get_file_records(
+            openid=request.openid,
+            workspace_ids=workspace_ids,
+            page=page,
+            page_size=page_size,
         )
 
-        return jsonify({"success": True, "data": records}), 200
+        return jsonify({"success": True, "data": records, "total": total}), 200
 
     except ValueError as e:
         return jsonify({"success": False, "message": str(e)}), 403
     except Exception as e:
-        logger.error(writeMessage(f"获取文件记录异常 - error: {str(e)}"))
+        logger.error(f"获取文件记录异常 - error: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500

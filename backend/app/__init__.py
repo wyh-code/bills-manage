@@ -2,7 +2,7 @@ import traceback
 from flask import Flask, g, request, jsonify
 from flask_cors import CORS
 from datetime import datetime
-from app.utils import writeMessage, get_logger, generate_trace_id
+from app.utils import get_logger, generate_trace_id
 from app.config import Config
 from app.database import init_db
 
@@ -56,10 +56,8 @@ def create_app(config_class=Config):
     @app.errorhandler(Exception)
     def handle_exception(e):
         """全局异常处理"""
-        logger.error(
-            writeMessage(f"未捕获异常 - path: {request.path}, error: {str(e)}")
-        )
-        logger.error(writeMessage(f"错误堆栈: {traceback.format_exc()}"))
+        logger.error(f"未捕获异常 - path: {request.path}, error: {str(e)}")
+        logger.error(f"错误堆栈: {traceback.format_exc()}")
 
         return jsonify({"success": False, "message": str(e)}), 500
 

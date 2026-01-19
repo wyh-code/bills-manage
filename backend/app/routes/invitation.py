@@ -2,7 +2,7 @@
 
 from flask import Blueprint, request, jsonify
 from app.services import invitation_service
-from app.utils import get_logger, writeMessage, jwt_required
+from app.utils import get_logger, jwt_required
 
 logger = get_logger(__name__)
 invitation_bp = Blueprint("invitation", __name__, url_prefix="/api/invitations")
@@ -55,7 +55,7 @@ def create_invitation():
     except ValueError as e:
         return jsonify({"success": False, "message": str(e)}), 403
     except Exception as e:
-        logger.error(writeMessage(f"创建邀请异常 - error: {str(e)}"))
+        logger.error(f"创建邀请异常 - error: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
@@ -83,7 +83,7 @@ def join_by_invitation():
     except ValueError as e:
         return jsonify({"success": False, "message": str(e)}), 400
     except Exception as e:
-        logger.error(writeMessage(f"加入邀请异常 - error: {str(e)}"))
+        logger.error(f"加入邀请异常 - error: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
@@ -107,8 +107,9 @@ def get_invitations():
         return jsonify({"success": True, "data": invitations}), 200
 
     except Exception as e:
-        logger.error(writeMessage(f"获取邀请列表异常 - error: {str(e)}"))
+        logger.error(f"获取邀请列表异常 - error: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
+
 
 @invitation_bp.route("/uses", methods=["GET"])
 @jwt_required
@@ -127,5 +128,5 @@ def get_invitation_uses():
         return jsonify({"success": True, "data": uses}), 200
 
     except Exception as e:
-        logger.error(writeMessage(f"获取邀请使用记录异常 - error: {str(e)}"))
+        logger.error(f"获取邀请使用记录异常 - error: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500

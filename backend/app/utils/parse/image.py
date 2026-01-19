@@ -3,7 +3,7 @@ import cv2
 import numpy as np
 from paddleocr import PaddleOCR
 from typing import Optional
-from app.utils.logger import get_logger, writeMessage
+from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
@@ -16,7 +16,7 @@ def get_ocr_instance() -> PaddleOCR:
     global _ocr_instance
     if _ocr_instance is None:
         _ocr_instance = PaddleOCR(lang="ch")
-        logger.info(writeMessage("PaddleOCR 初始化成功"))
+        logger.info("PaddleOCR 初始化成功")
     return _ocr_instance
 
 
@@ -29,7 +29,7 @@ def parse_image(filepath: str, min_confidence: float = 0.5) -> str:
         min_confidence: 最小置信度阈值，低于此值的文本将被过滤
     """
     try:
-        logger.info(writeMessage(f"开始调用PaddleOCR解析图片: {filepath}"))
+        logger.info(f"开始调用PaddleOCR解析图片: {filepath}")
 
         # 1. 验证文件存在
         if not os.path.exists(filepath):
@@ -41,7 +41,7 @@ def parse_image(filepath: str, min_confidence: float = 0.5) -> str:
 
         if img is None:
             error_msg = f"无法读取图片文件（可能已损坏）: {filepath}"
-            logger.error(writeMessage(error_msg))
+            logger.error(error_msg)
             return "[图片文件损坏]"
 
         # 3. 获取 OCR 实例并识别
@@ -50,7 +50,7 @@ def parse_image(filepath: str, min_confidence: float = 0.5) -> str:
 
         # 4. 检查结果
         if not result:
-            logger.warning(writeMessage(f"未识别到任何文本: {filepath}"))
+            logger.warning(f"未识别到任何文本: {filepath}")
             return "[图片未识别到文字内容]"
 
         # 5. 提取文本（适配 PaddleX 返回格式）
@@ -72,9 +72,7 @@ def parse_image(filepath: str, min_confidence: float = 0.5) -> str:
                     # 过滤低置信度文本
                     if confidence < min_confidence:
                         logger.debug(
-                            writeMessage(
-                                f"过滤低置信度文本: {text} (置信度: {confidence:.2f})"
-                            )
+                            f"过滤低置信度文本: {text} (置信度: {confidence:.2f})"
                         )
                         continue
 
@@ -101,9 +99,7 @@ def parse_image(filepath: str, min_confidence: float = 0.5) -> str:
 
         # 6. 检查是否有有效文本
         if not text_items:
-            logger.warning(
-                writeMessage(f"所有文本置信度过低（< {min_confidence}）: {filepath}")
-            )
+            logger.warning(f"所有文本置信度过低（< {min_confidence}）: {filepath}")
             return "[图片文字置信度过低]"
 
         # 7. 按Y坐标排序（从上到下），同一行按X坐标排序（从左到右）
@@ -119,20 +115,18 @@ def parse_image(filepath: str, min_confidence: float = 0.5) -> str:
         )
 
         logger.info(
-            writeMessage(
-                f"PaddleOCR解析成功 - 文件: {filepath}, "
-                f"识别行数: {len(extracted_lines)}, "
-                f"平均置信度: {avg_confidence:.2f}"
-            )
+            f"PaddleOCR解析成功 - 文件: {filepath}, "
+            f"识别行数: {len(extracted_lines)}, "
+            f"平均置信度: {avg_confidence:.2f}"
         )
-        logger.info(writeMessage(f"识别文本预览: {extracted_text}"))
+        logger.info(f"识别文本预览: {extracted_text}")
 
         return extracted_text
 
     except FileNotFoundError as e:
-        logger.error(writeMessage(str(e)))
+        logger.error(str(e))
         raise
     except Exception as e:
         error_msg = f"图片文件解析错误: {str(e)}"
-        logger.error(writeMessage(f"{error_msg} - 文件: {filepath}"))
+        logger.error(f"{error_msg} - 文件: {filepath}")
         raise Exception(error_msg)

@@ -5,6 +5,7 @@ from app.services import auth_service
 from app.config import Config
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
+DATASOURCE = Config.DATASOURCE
 
 @auth_bp.route('/wx/config', methods=['GET'])
 def wx_config():
@@ -15,8 +16,7 @@ def wx_config():
     Response: {success, data: {state, qrCodeUrl, ...}}
     """
     try:
-        DATASOURCE = Config.DATASOURCE
-        datasource = request.headers.get('datasource', DATASOURCE)
+        datasource = DATASOURCE or request.headers.get('datasource', DATASOURCE)
         result = auth_service.config(datasource)
         
         return jsonify({"success": True, "data": result}), 200
@@ -33,7 +33,7 @@ def wx_status(state):
     Response: {success, data: {status, code, ...}}
     """
     try:
-        datasource = request.headers.get('datasource', Config.DATASOURCE)
+        datasource = DATASOURCE or request.headers.get('datasource', DATASOURCE)
         result = auth_service.status(datasource, state)
         
         return jsonify({"success": True, "data": result}), 200
@@ -50,7 +50,7 @@ def wx_code2info():
     Response: {success, data: {user, token}}
     """
     try:
-        datasource = request.headers.get("datasource", Config.DATASOURCE)
+        datasource = DATASOURCE or request.headers.get('datasource', DATASOURCE)
         code = request.args.get("code")
         
         if not code:

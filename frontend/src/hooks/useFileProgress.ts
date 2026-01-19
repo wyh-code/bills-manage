@@ -5,7 +5,7 @@ interface UseFileProgressParams {
   workspaceId: string;
   fileId?: string;
   onCompleted?: (bills: any[]) => void;
-  onFailed?: () => void;
+  onFailed?: (file_id?:string) => void;
   pollingInterval?: number; // 轮询间隔（毫秒）
 }
 
@@ -58,7 +58,7 @@ export const useFileProgress = ({
       // console.log('result: ', result)
       if (!isMountedRef.current) return;
 
-      const { file_status, bills = [], bills_count } = result;
+      const { file_status, bills = [], bills_count, file_id } = result;
 
       setState({
         status: file_status,
@@ -78,7 +78,7 @@ export const useFileProgress = ({
       } else if (file_status === 'failed') {
         // 失败，调用回调
         clearTimer();
-        onFailed?.();
+        onFailed?.(file_id);
       }
     } catch (error) {
       console.error('获取文件进度失败:', error);

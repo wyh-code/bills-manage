@@ -97,8 +97,6 @@ export default () => {
   const handleReset = () => {
     setFile(null);
     setUploadResult({});
-    form.resetFields();
-    setWorkspaceId('');
   };
 
   useEffect(() => {

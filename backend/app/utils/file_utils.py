@@ -5,7 +5,7 @@ import hashlib
 from datetime import datetime
 from nanoid import generate
 from app.config import Config
-from app.utils import writeMessage, get_logger
+from app.utils import get_logger
 
 logger = get_logger(__name__)
 
@@ -89,9 +89,7 @@ def save_uploaded_file(file, workspace_id, original_filename, file_hash=None):
     relative_path = os.path.join(str(workspace_id), today, unique_filename)
 
     logger.info(
-        writeMessage(
-            f"文件保存成功 - path: {relative_path}, hash: {file_hash}, size: {file_size}"
-        )
+        f"文件保存成功 - path: {relative_path}, hash: {file_hash}, size: {file_size}"
     )
 
     return relative_path, file_hash, file_size

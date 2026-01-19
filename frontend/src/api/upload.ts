@@ -191,16 +191,17 @@ class FileAPI {
   /**
    * 获取文件上传记录
    */
-  async getRecords(): Promise<FileRecord[]> {
-    const response = await apiClient.get<ApiResponse<FileRecord[]>>(
+  async getRecords(params): Promise<any> {
+    const response = await apiClient.get<ApiResponse<any>>(
       '/files/records',
+      { params }
     );
 
     if (!response.data.success || !response.data.data) {
       throw new Error(response.data.message || '获取文件记录失败');
     }
 
-    return response.data.data;
+    return response.data;
   }
 }
 

@@ -18,6 +18,7 @@ export default ({ workspaceId, uploadResult, file, handleReset, setDisabledUploa
   const [selectedRows, setSelectedRows] = useState([]);
   const [datasource, setDatasource] = useState([]);
   const [exchangeRate, setExchangeRate] = useState(7.1);
+  const [failedFileId, setFailedFileId] = useState('');
   const data = uploadResult?.data || {};
 
   // 使用轮询Hook
@@ -28,15 +29,22 @@ export default ({ workspaceId, uploadResult, file, handleReset, setDisabledUploa
       console.log('处理完成，账单数量:', bills.length);
       setDisabledUpload(false)
     },
-    onFailed: () => {
-      message.error('处理失败');
+    onFailed: (file_id) => {
+      let msg;
+      if(file_id) {
+        msg = '提炼账单处理失败，请手动添加账单'
+      } else {
+        msg = '解析文件失败，请重新上传'
+      }
+      message.error(msg);
+      setFailedFileId(file_id)
       setDisabledUpload(false)
     },
   });
 
   const onRowSelectChange = (_, selectedRows, { type }) => {
     if (selectedRows.length && type === 'all') {
-      selectedRows = [...bills];
+      selectedRows = [...datasource];
     }
     setSelectedRows(selectedRows);
   }
@@ -49,7 +57,6 @@ export default ({ workspaceId, uploadResult, file, handleReset, setDisabledUploa
     if (key === 'currency' && row[key]) {
       row[key] = row[key].toUpperCase()
     }
-    console.log(key, row.currency.toLowerCase() === 'usd', row.currency.toLowerCase())
     if (key === 'amount_foreign' && row.currency.toLowerCase() === 'usd') {
       row.amount_cny = Number((value * exchangeRate).toFixed(2))
     }
@@ -92,13 +99,19 @@ export default ({ workspaceId, uploadResult, file, handleReset, setDisabledUploa
   }
 
   const addBills = () => {
-    const temp = { ...datasource[0], id: +new Date, type: 'add', status: 'modified' };
+    const temp = {
+      ...datasource[0],
+      workspace_id: workspaceId,
+      file_upload_id:failedFileId,
+      id: +new Date,
+      type: 'add',
+      status: 'modified'
+    };
     Object.keys(temp).forEach(key => {
       if (inputKey.includes(key)) {
         temp[key] = undefined
       }
     })
-
     datasource.push(temp);
     setDatasource([...datasource])
   }
@@ -146,13 +159,18 @@ export default ({ workspaceId, uploadResult, file, handleReset, setDisabledUploa
               </>
             )
           }
-          <ConfirmButton
-            handleReset={handleResetHandler}
-            workspaceId={workspaceId}
-            file_id={data.file_id}
-            selectedRows={selectedRows}
-            bills={bills}
-          />
+          {
+            // 解析结果为0 && !failedFileId 文件信息未入库
+            (!bills.length && !failedFileId) ? null : (
+              <ConfirmButton
+                handleReset={handleResetHandler}
+                workspaceId={workspaceId}
+                file_id={data.file_id}
+                selectedRows={selectedRows}
+                bills={datasource}
+              />
+            )
+          }
         </div>
       </div>
       <div className={styles.bills}>
@@ -169,7 +187,7 @@ export default ({ workspaceId, uploadResult, file, handleReset, setDisabledUploa
               </div>
             </div>
           ) : (
-            bills.length ? (
+            datasource.length ? (
               <Table
                 rowKey="id"
                 dataSource={datasource}

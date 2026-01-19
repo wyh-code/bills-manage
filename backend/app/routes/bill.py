@@ -1,7 +1,7 @@
 """账单管理路由"""
 
 from flask import Blueprint, request, jsonify
-from app.utils import get_logger, writeMessage, jwt_required
+from app.utils import get_logger, jwt_required
 from app.services import bill_service
 
 logger = get_logger(__name__)
@@ -26,7 +26,7 @@ def get_settlement_summary():
         return jsonify({"success": True, "data": summary}), 200
 
     except Exception as e:
-        logger.error(writeMessage(f"获取结算汇总异常 - error: {str(e)}"))
+        logger.error(f"获取结算汇总异常 - error: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
@@ -68,10 +68,10 @@ def batch_confirm_bills():
         return jsonify({"success": True, "data": result}), 200
 
     except ValueError as e:
-        logger.error(writeMessage(f"批量确认账单 - ValueError - error: {str(e)}"))
+        logger.error(f"批量确认账单 - ValueError - error: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 403
     except Exception as e:
-        logger.error(writeMessage(f"批量确认账单异常 - error: {str(e)}"))
+        logger.error(f"批量确认账单异常 - error: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
@@ -99,12 +99,6 @@ def get_bills():
         page = int(request.args.get("page", 1))
         page_size = int(request.args.get("page_size", 20))
 
-        # 参数校验
-        if page < 1:
-            page = 1
-        if page_size < 1 or page_size > 100:
-            page_size = 20
-
         result = bill_service.get_bills(
             openid=request.openid,
             workspace_ids=workspace_ids,
@@ -121,7 +115,7 @@ def get_bills():
     except ValueError as e:
         return jsonify({"success": False, "message": str(e)}), 400
     except Exception as e:
-        logger.error(writeMessage(f"获取账单列表异常 - error: {str(e)}"))
+        logger.error(f"获取账单列表异常 - error: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
@@ -143,7 +137,7 @@ def get_card_list():
         return jsonify({"success": True, "data": cards}), 200
 
     except Exception as e:
-        logger.error(writeMessage(f"获取卡号列表异常 - error: {str(e)}"))
+        logger.error(f"获取卡号列表异常 - error: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
@@ -169,9 +163,7 @@ def get_bill(bill_id):
     except ValueError as e:
         return jsonify({"success": False, "message": str(e)}), 404
     except Exception as e:
-        logger.error(
-            writeMessage(f"获取账单详情异常 - bill_id: {bill_id}, error: {str(e)}")
-        )
+        logger.error(f"获取账单详情异常 - bill_id: {bill_id}, error: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
@@ -196,9 +188,7 @@ def update_bill():
     except ValueError as e:
         return jsonify({"success": False, "message": str(e)}), 403
     except Exception as e:
-        logger.error(
-            writeMessage(f"更新账单异常 - bill_id: {bill_id}, error: {str(e)}")
-        )
+        logger.error(f"更新账单异常 - bill_id: {bill_id}, error: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
@@ -238,10 +228,10 @@ def batch_update_bills():
         return jsonify({"success": True, "data": result}), 200
 
     except ValueError as e:
-        logger.error(writeMessage(f"批量更新账单 - ValueError - error: {str(e)}"))
+        logger.error(f"批量更新账单 - ValueError - error: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 403
     except Exception as e:
-        logger.error(writeMessage(f"批量更新账单异常 - error: {str(e)}"))
+        logger.error(f"批量更新账单异常 - error: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
@@ -281,10 +271,10 @@ def batch_create_bills():
         return jsonify({"success": True, "data": result}), 200
 
     except ValueError as e:
-        logger.error(writeMessage(f"批量创建账单 - ValueError - error: {str(e)}"))
+        logger.error(f"批量创建账单 - ValueError - error: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 403
     except Exception as e:
-        logger.error(writeMessage(f"批量创建账单异常 - error: {str(e)}"))
+        logger.error(f"批量创建账单异常 - error: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500
 
 
@@ -308,12 +298,8 @@ def delete_bill(bill_id):
         return jsonify({"success": True, "message": "账单已删除"}), 200
 
     except ValueError as e:
-        logger.error(
-            writeMessage(f"删除账单异常 - bill_id: {bill_id}, error: {str(e)}")
-        )
+        logger.error(f"删除账单异常 - bill_id: {bill_id}, error: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 403
     except Exception as e:
-        logger.error(
-            writeMessage(f"删除账单异常 - bill_id: {bill_id}, error: {str(e)}")
-        )
+        logger.error(f"删除账单异常 - bill_id: {bill_id}, error: {str(e)}")
         return jsonify({"success": False, "message": str(e)}), 500

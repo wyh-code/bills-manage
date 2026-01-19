@@ -1,21 +1,14 @@
 import { useState } from 'react';
-import { Button, Modal, Drawer } from 'antd';
-import { FileSearchOutlined, EyeOutlined, CloudDownloadOutlined } from '@ant-design/icons';
+import { Button, Modal } from 'antd';
+import { EyeOutlined, CloudDownloadOutlined } from '@ant-design/icons';
 import { fileApi } from '@/api/upload';
-import FilePreview from '@/component/FilePreview';
+import PreviewBill from '@/component/PreviewBill';
 import styles from './index.module.less';
 
 export default ({ month, row }) => {
   const [open, setOpen] = useState(false);
-  const [visible, setVisible] = useState(false);
-  const [fileInfo, setFileInfo] = useState(null);
 
   const data = row[month]
-
-  const onPriview = (fileInfo) => {
-    setVisible(true);
-    setFileInfo(fileInfo)
-  }
 
   if (!data) return <span>--</span>;
 
@@ -40,35 +33,26 @@ export default ({ month, row }) => {
       >
         {
           data.originalDataList.map(raw_line => (
-            <p key={raw_line.raw_line} style={{ whiteSpace: 'nowrap' }}>
+            <p key={raw_line.raw_line} style={{ whiteSpace: 'nowrap', display: 'flex' }}>
               {`${row.key}_`}
               {raw_line.origin.trade_date}: {raw_line.origin.amount_cny ?
                 `CNY ${raw_line.origin.amount_cny}` :
                 `${raw_line.origin.currency} ${raw_line.origin.amount_foreign}`}
 
-                <FileSearchOutlined 
-                  style={{ marginLeft: 10 }} 
-                  onClick={() => onPriview(raw_line.origin)} 
-                />
-                <CloudDownloadOutlined 
-                  style={{ marginLeft: 10 }} 
-                  onClick={() => fileApi.download(raw_line.origin?.file_upload_id, raw_line.origin?.workspace_id)}
-                />
+              <PreviewBill
+                style={{ marginLeft: 10 }}
+                fileId={raw_line.origin.file_upload_id}
+                workspaceId={raw_line.origin.workspace_id}
+              />
+              <CloudDownloadOutlined
+                style={{ marginLeft: 10 }}
+                onClick={() => fileApi.download(raw_line.origin?.file_upload_id, raw_line.origin?.workspace_id)}
+              />
             </p>
           ))
         }
       </Modal>
-      <Drawer 
-        open={visible} 
-        title="原始账单" 
-        onClose={() => setVisible(false)}
-        size={1200}
-      >
-        <FilePreview
-          fileId={fileInfo?.file_upload_id}
-          workspaceId={fileInfo?.workspace_id}
-        />
-      </Drawer>
+
     </>
   )
 }

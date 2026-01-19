@@ -79,9 +79,3 @@ loggerManager = LoggerManager()
 
 def get_logger(name="app"):
     return loggerManager.get_logger(name)
-
-
-def writeMessage(message):
-    """已废弃"""
-    trace_id = get_trace_id()
-    return f"[TraceID: {trace_id}] {message}"

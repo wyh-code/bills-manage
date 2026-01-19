@@ -4,7 +4,7 @@ from datetime import datetime
 from sqlalchemy import func, or_
 from app.models import Bill, FileUpload, WorkspaceMember, User
 from app.database import db_session, db_transaction
-from app.utils import get_logger, writeMessage, require_workspace_permission
+from app.utils import get_logger, require_workspace_permission
 
 logger = get_logger(__name__)
 
@@ -296,10 +296,8 @@ def batch_confirm_bills(
         )
 
         logger.info(
-            writeMessage(
-                f"批量确认账单成功 - file_id: {file_id}, "
-                f"updated: {updated_count}, total: {len(bills)}"
-            )
+            f"批量确认账单成功 - file_id: {file_id}, "
+            f"updated: {updated_count}, total: {len(bills)}"
         )
 
         return {
@@ -393,7 +391,7 @@ def update_bill(openid: str, workspace_id: str, bill_id: str, update_data: dict)
             bill.status = update_data["status"]
 
         bill.updated_at = datetime.now()
-        logger.info(writeMessage(f"账单更新成功 - bill_id: {bill_id}"))
+        logger.info(f"账单更新成功 - bill_id: {bill_id}")
 
         return bill.to_dict()
 
@@ -500,10 +498,8 @@ def batch_update_bills(workspace_id: str, updates: list, openid: str) -> dict:
                 )
 
     logger.info(
-        writeMessage(
-            f"批量更新账单 - workspace_id: {workspace_id}, "
-            f"updated: {updated_count}, failed: {failed_count}"
-        )
+        f"批量更新账单 - workspace_id: {workspace_id}, "
+        f"updated: {updated_count}, failed: {failed_count}"
     )
 
     return {
@@ -582,10 +578,8 @@ def batch_create_bills(workspace_id: str, bills_data: list, openid: str) -> dict
                 )
 
     logger.info(
-        writeMessage(
-            f"批量创建账单 - workspace_id: {workspace_id}, "
-            f"created: {created_count}, failed: {failed_count}"
-        )
+        f"批量创建账单 - workspace_id: {workspace_id}, "
+        f"created: {created_count}, failed: {failed_count}"
     )
 
     return {
@@ -637,4 +631,4 @@ def delete_bill(workspace_id: str, bill_id: str, openid: str) -> None:
             )
             file_record.bills_count = valid_bills_count
 
-        logger.info(writeMessage(f"账单删除成功 - bill_id: {bill_id}"))
+        logger.info(f"账单删除成功 - bill_id: {bill_id}")

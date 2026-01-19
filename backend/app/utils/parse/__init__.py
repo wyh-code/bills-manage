@@ -1,9 +1,10 @@
-from app.utils.logger import get_logger, writeMessage
+from app.utils.logger import get_logger
 from .excel import parse_excel
 from .pdf import parse_pdf
 from .image import parse_image
 
 logger = get_logger(__name__)
+
 
 def parse_file(filepath, file_ext):
     """
@@ -19,7 +20,7 @@ def parse_file(filepath, file_ext):
             return parse_excel(filepath)
         else:
             error_msg = f"不支持的文件格式: {file_ext}"
-            logger.error(writeMessage(error_msg))
+            logger.error(error_msg)
             raise Exception(error_msg)
 
     except Exception as e:

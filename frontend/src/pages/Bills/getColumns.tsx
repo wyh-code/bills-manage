@@ -1,6 +1,7 @@
 import { message, Modal, Input } from "antd";
 import Link from "@/component/Link";
 import TextBallonWithEllipse from "@/component/TextBallonWithEllipse";
+import PreviewBill from '@/component/PreviewBill';
 import { billApi } from '@/api/bill';
 import Status from "@/component/Status";
 import styles from './index.module.less'
@@ -105,21 +106,25 @@ export const getColumns = ({ setUpdate }) => {
     },
     {
       title: '操作',
-      width: 100,
+      width: 130,
       dataIndex: 'handler',
       key: 'handler',
       render: (value, row) => {
         console.log(row.status !== 'pending', row.status)
         return (
           <div className={styles.handler}>
+            <PreviewBill fileId={row.file_upload_id} workspaceId={row.workspace_id}>
+              <Link>查看</Link>
+            </PreviewBill>
             <Link
+              style={{ marginLeft: 10 }}
               onClick={() => onPay(row)}
               disabled={row.status === 'payed'}
             >
               结算
             </Link>
             <Link
-              style={{ marginLeft: 12 }}
+              style={{ marginLeft: 10 }}
               onClick={() => onConfirm(row)}
               disabled={row.status !== 'pending'}
             >
