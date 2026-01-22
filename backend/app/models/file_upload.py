@@ -19,7 +19,8 @@ class FileUpload(BaseModel):
     bills_count = Column(Integer, default=0, comment='精炼出的账单数量')
     upload_time = Column(BigInteger, nullable=False, comment='上传时间戳')
     status = Column(String(20), nullable=False, default='active', comment='文件状态：active/inactive/processing/completed/failed')
-    
+    remark = Column(Text, nullable=True, comment='备注')
+
     __table_args__ = (
         Index('idx_workspace_file_hash', 'id', 'workspace_id', 'file_hash', 'is_deleted', 'status', unique=True),
     )

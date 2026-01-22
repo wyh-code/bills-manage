@@ -9,6 +9,54 @@ from app.utils import get_logger, require_workspace_permission
 logger = get_logger(__name__)
 
 
+def _apply_bill_updates(bill: Bill, data: dict, update_time: datetime = None) -> None:
+    """
+    应用账单字段更新（公共函数，消除重复代码）
+    
+    Args:
+        bill: Bill 模型实例
+        data: 更新数据字典
+        update_time: 更新时间，默认为当前时间
+    """
+    if "bank" in data:
+        bill.bank = data["bank"]
+
+    if "trade_date" in data and data["trade_date"]:
+        try:
+            bill.trade_date = datetime.strptime(data["trade_date"], "%Y-%m-%d").date()
+        except ValueError:
+            pass
+
+    if "record_date" in data and data["record_date"]:
+        try:
+            bill.record_date = datetime.strptime(data["record_date"], "%Y-%m-%d").date()
+        except ValueError:
+            pass
+
+    if "description" in data:
+        bill.description = data["description"]
+
+    if "remark" in data:
+        bill.remark = data["remark"]
+
+    if "amount_cny" in data:
+        bill.amount_cny = data["amount_cny"]
+
+    if "card_last4" in data:
+        bill.card_last4 = data["card_last4"]
+
+    if "amount_foreign" in data:
+        bill.amount_foreign = data["amount_foreign"]
+
+    if "currency" in data:
+        bill.currency = data["currency"]
+
+    if "status" in data:
+        bill.status = data["status"]
+
+    bill.updated_at = update_time or datetime.now()
+
+
 def get_settlement_summary(openid: str, workspace_ids: list = None) -> dict:
     """
     获取结算汇总统计
@@ -349,48 +397,8 @@ def update_bill(openid: str, workspace_id: str, bill_id: str, update_data: dict)
         if not bill:
             raise ValueError("账单不存在")
 
-        # 更新字段
-        if "bank" in update_data:
-            bill.bank = update_data["bank"]
-
-        if "trade_date" in update_data and update_data["trade_date"]:
-            try:
-                bill.trade_date = datetime.strptime(
-                    update_data["trade_date"], "%Y-%m-%d"
-                ).date()
-            except ValueError:
-                pass
-
-        if "record_date" in update_data and update_data["record_date"]:
-            try:
-                bill.record_date = datetime.strptime(
-                    update_data["record_date"], "%Y-%m-%d"
-                ).date()
-            except ValueError:
-                pass
-
-        if "description" in update_data:
-            bill.description = update_data["description"]
-
-        if "remark" in update_data:
-            bill.remark = update_data["remark"]
-
-        if "amount_cny" in update_data:
-            bill.amount_cny = update_data["amount_cny"]
-
-        if "card_last4" in update_data:
-            bill.card_last4 = update_data["card_last4"]
-
-        if "amount_foreign" in update_data:
-            bill.amount_foreign = update_data["amount_foreign"]
-
-        if "currency" in update_data:
-            bill.currency = update_data["currency"]
-
-        if "status" in update_data:
-            bill.status = update_data["status"]
-
-        bill.updated_at = datetime.now()
+        # 使用公共函数更新字段
+        _apply_bill_updates(bill, update_data)
         logger.info(f"账单更新成功 - bill_id: {bill_id}")
 
         return bill.to_dict()
@@ -446,48 +454,8 @@ def batch_update_bills(workspace_id: str, updates: list, openid: str) -> dict:
                     )
                     continue
 
-                # 更新字段
-                if "bank" in item:
-                    bill.bank = item["bank"]
-
-                if "trade_date" in item and item["trade_date"]:
-                    try:
-                        bill.trade_date = datetime.strptime(
-                            item["trade_date"], "%Y-%m-%d"
-                        ).date()
-                    except ValueError:
-                        pass
-
-                if "record_date" in item and item["record_date"]:
-                    try:
-                        bill.record_date = datetime.strptime(
-                            item["record_date"], "%Y-%m-%d"
-                        ).date()
-                    except ValueError:
-                        pass
-
-                if "description" in item:
-                    bill.description = item["description"]
-
-                if "remark" in item:
-                    bill.remark = item["remark"]
-
-                if "amount_cny" in item:
-                    bill.amount_cny = item["amount_cny"]
-
-                if "card_last4" in item:
-                    bill.card_last4 = item["card_last4"]
-
-                if "amount_foreign" in item:
-                    bill.amount_foreign = item["amount_foreign"]
-
-                if "currency" in item:
-                    bill.currency = item["currency"]
-
-                if "status" in item:
-                    bill.status = item["status"]
-
-                bill.updated_at = now
+                # 使用公共函数更新字段
+                _apply_bill_updates(bill, item, now)
                 updated_count += 1
                 results.append({"bill_id": bill_id, "success": True})
 

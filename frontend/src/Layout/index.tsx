@@ -1,6 +1,6 @@
-import { Layout as AntLayout, Menu, Avatar, Dropdown } from 'antd';
+import { Layout as AntLayout, Menu, Button } from 'antd';
 import { Outlet, useNavigate, useLocation } from 'react-router-dom';
-import { UserOutlined, LogoutOutlined } from '@ant-design/icons';
+import { LogoutOutlined } from '@ant-design/icons';
 import authService from '@/auth/authService';
 import styles from './index.module.less';
 
@@ -18,17 +18,11 @@ export default function Layout() {
     { key: '/summary', label: '账单汇总' },
   ];
 
-  const userMenuItems = [
-    {
-      key: 'logout',
-      icon: <LogoutOutlined />,
-      label: '退出登录',
-      onClick: async () => {
-        await authService.logout();
-        navigate('/login');
-      },
-    },
-  ];
+  const logout = async () => {
+    await authService.logout();
+    navigate('/login');
+  }
+
   return (
     <AntLayout className={styles.layout}>
       <Header className={styles.header}>
@@ -43,18 +37,13 @@ export default function Layout() {
           className={styles.menu}
         />
         <div className={styles.userActions}>
-          <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
-            <div className={styles.user}>
-              <Avatar
-                size={32}
-                src={user?.headimgurl}
-                icon={<UserOutlined />}
-              />
-            </div>
-          </Dropdown>
+          <Button onClick={logout} style={{ border: 'none' }}>
+            <LogoutOutlined />
+            退出登录
+          </Button>
         </div>
       </Header>
-       <Content className={styles.content}>
+      <Content className={styles.content}>
         <Outlet />
       </Content>
     </AntLayout>

@@ -4,11 +4,16 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+
 # 项目根目录的路径
 class Config:
     BASE_DIR = Path(__file__).parent.parent
     # 种子用户配置
-    SEED_USERS = os.environ.get("SEED_USERS", "").split(",") if os.environ.get("SEED_USERS") else []
+    SEED_USERS = (
+        os.environ.get("SEED_USERS", "").split(",")
+        if os.environ.get("SEED_USERS")
+        else []
+    )
 
     # 加载环境变量中配置的密钥
     SECRET_KEY = os.environ.get("SECRET_KEY", "dev-secret-key-change-in-production")
@@ -27,7 +32,7 @@ class Config:
 
     # 日志配置
     # 日志存放目录
-    LOG_DIR = os.environ.get("LOG_DIR", BASE_DIR / "logs")
+    LOG_DIR = BASE_DIR / "logs"
     # 日志文件
     LOG_FILE = os.environ.get("LOG_FILE", "app.log")
     # 日志级别
@@ -37,14 +42,30 @@ class Config:
     # 是否启用控制台
     LOG_ENABLE_CONSOLE = os.environ.get("LOG_ENABLE_CONSOLE", "true").lower() == "true"
 
-    DB_DIR = os.environ.get("DB_DIR", BASE_DIR / "database")
+    DB_DIR = BASE_DIR / "database"
     DB_PATH = os.environ.get("DB_PATH", "bills.db")
 
     # 本地文件的存储目录
-    STORAGE_DIR = os.environ.get("STORAGE_DIR", BASE_DIR / "storages")
+    STORAGE_DIR = BASE_DIR / "storages"
     # 允许的文件扩展名
     ALLOWED_EXTENSIONS = {"pdf", "png", "jpg", "jpeg", "xlsx", "xls"}
 
     DEEPSEEK_CHAT_MODEL = os.environ.get("DEEPSEEK_CHAT_MODEL", "deepseek-chat")
     DEEPSEEK_API_KEY = os.environ.get("DEEPSEEK_API_KEY", "")
     DEEPSEEK_BASE_URL = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com")
+
+    # ==================== Token计费配置 ====================
+    # 2元/百万token = 0.002元/千token
+    _default_pricing = os.environ.get("DEEPSEEK_TOKEN_PRICING", 0.002)
+    TOKEN_PRICING = {"deepseek-chat": _default_pricing, "default": _default_pricing}
+
+    # ==================== 支付宝配置 ====================
+    ALIPAY_APP_ID = os.environ.get("ALIPAY_APP_ID", "")
+    ALIPAY_PRIVATE_KEY = os.environ.get("ALIPAY_PRIVATE_KEY", "")
+    ALIPAY_PUBLIC_KEY = os.environ.get("ALIPAY_PUBLIC_KEY", "")
+    ALIPAY_GATEWAY = os.environ.get(
+        "ALIPAY_GATEWAY", "https://openapi.alipay.com/gateway.do"
+    )
+    ALIPAY_NOTIFY_URL = os.environ.get("ALIPAY_NOTIFY_URL", "")
+    ALIPAY_RETURN_URL = os.environ.get("ALIPAY_RETURN_URL", "")
+    ALIPAY_DEBUG = os.environ.get("ALIPAY_DEBUG", "false").lower() == "true"

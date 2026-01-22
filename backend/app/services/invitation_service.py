@@ -126,37 +126,151 @@ def create_invitation(
         return result
 
 
+def _validate_invitation(db, token: str, openid: str) -> tuple:
+    """
+    验证邀请码有效性（私有函数）
+    
+    Returns:
+        (invitation, existing_use): 邀请对象和已使用记录(如有)
+    
+    Raises:
+        ValueError: 邀请无效/过期/达上限
+    """
+    invitation = (
+        db.query(Invitation)
+        .filter(Invitation.token == token, Invitation.is_deleted == False)
+        .first()
+    )
+    
+    if not invitation:
+        raise ValueError("邀请链接无效")
+
+    if invitation.status != "active":
+        raise ValueError("邀请已失效")
+
+    if invitation.expires_at < datetime.now():
+        raise ValueError("邀请已过期")
+
+    if invitation.used_count >= invitation.max_uses:
+        raise ValueError("邀请已达使用上限")
+
+    # 检查是否已使用过该邀请
+    existing_use = (
+        db.query(InvitationUse)
+        .filter(
+            InvitationUse.invitation_id == invitation.id,
+            InvitationUse.user_openid == openid,
+        )
+        .first()
+    )
+    
+    return invitation, existing_use
+
+
+def _record_invitation_use(db, invitation, openid: str, invitation_type: str, now: datetime) -> None:
+    """记录邀请使用并更新计数（私有函数）"""
+    use_record = InvitationUse(
+        invitation_id=invitation.id,
+        user_openid=openid,
+        invitation_type=invitation_type,
+        used_at=now,
+    )
+    db.add(use_record)
+    invitation.used_count += 1
+    invitation.updated_at = now
+
+
+def _handle_platform_invitation(db, invitation, token: str, openid: str, now: datetime) -> dict:
+    """处理平台邀请（私有函数）"""
+    user = db.query(User).filter(User.openid == openid).first()
+    if not user:
+        raise ValueError("用户不存在")
+
+    user.status = "active"
+    user.platform_invitation_token = token
+    user.activated_at = now
+    user.updated_at = now
+
+    _record_invitation_use(db, invitation, openid, "platform", now)
+    logger.info(f"平台邀请激活用户 - user: {openid}, token: {token}")
+
+    return {
+        "type": "platform",
+        "user": user.to_dict(),
+        "activated_at": now.isoformat(),
+        "message": "账号已激活",
+    }
+
+
+def _handle_workspace_invitation(db, invitation, openid: str, now: datetime) -> dict:
+    """处理工作空间邀请（私有函数）"""
+    # 检查是否已是空间成员
+    existing_member = (
+        db.query(WorkspaceMember)
+        .filter(
+            WorkspaceMember.workspace_id == invitation.workspace_id,
+            WorkspaceMember.member_openid == openid,
+            WorkspaceMember.is_deleted == False,
+        )
+        .first()
+    )
+    
+    if existing_member:
+        workspace_detail = get_workspace_detail(
+            invitation.workspace_id, invitation.created_by_openid
+        )
+        return {
+            "type": "workspace",
+            "workspace_id": invitation.workspace_id,
+            "workspace_name": workspace_detail["name"],
+            "role": existing_member.role,
+            "message": "您已是该空间成员",
+        }
+    
+    # 添加为成员
+    member = WorkspaceMember(
+        workspace_id=invitation.workspace_id,
+        member_openid=openid,
+        role=invitation.role,
+        status="active",
+        granted_at=now,
+    )
+    db.add(member)
+
+    # 自动激活用户
+    user = db.query(User).filter(User.openid == openid).first()
+    if user and user.status == "inactive":
+        user.status = "active"
+        user.activated_at = now
+        user.updated_at = now
+
+    _record_invitation_use(db, invitation, openid, "workspace", now)
+    
+    workspace_detail = get_workspace_detail(
+        invitation.workspace_id, invitation.created_by_openid
+    )
+
+    logger.info(
+        f"用户通过邀请加入空间 - workspace_id: {invitation.workspace_id}, "
+        f"user: {openid}, role: {invitation.role}"
+    )
+
+    return {
+        "type": "workspace",
+        "workspace_id": invitation.workspace_id,
+        "workspace_name": workspace_detail["name"],
+        "role": invitation.role,
+        "joined_at": now.isoformat(),
+    }
+
+
 def join_by_invitation(token: str, openid: str) -> dict:
-    """通过邀请码加入"""
+    """通过邀请码加入（支持平台邀请和空间邀请）"""
     with db_transaction() as db:
-        invitation = (
-            db.query(Invitation)
-            .filter(Invitation.token == token, Invitation.is_deleted == False)
-            .first()
-        )
-        # print("invitation: ", invitation.to_dict())
-        if not invitation:
-            raise ValueError("邀请链接无效")
-
-        if invitation.status != "active":
-            raise ValueError("邀请已失效")
-
-        if invitation.expires_at < datetime.now():
-            raise ValueError("邀请已过期")
-
-        if invitation.used_count >= invitation.max_uses:
-            raise ValueError("邀请已达使用上限")
-
-        # 检查是否已使用过该邀请
-        existing_use = (
-            db.query(InvitationUse)
-            .filter(
-                InvitationUse.invitation_id == invitation.id,
-                InvitationUse.user_openid == openid,
-            )
-            .first()
-        )
-
+        # 1. 验证邀请码
+        invitation, existing_use = _validate_invitation(db, token, openid)
+        
+        # 2. 处理重复使用
         if existing_use:
             if invitation.type == "platform":
                 return {"type": "platform", "message": "您已使用过该邀请码"}
@@ -169,110 +283,16 @@ def join_by_invitation(token: str, openid: str) -> dict:
                     "role": invitation.role,
                     "message": "您已是该空间成员",
                 }
-
+        
         now = datetime.now()
-
-        # 平台邀请处理
+        
+        # 3. 根据类型分发处理
         if invitation.type == "platform":
-            user = db.query(User).filter(User.openid == openid).first()
-            if not user:
-                raise ValueError("用户不存在")
-
-            user.status = "active"
-            user.platform_invitation_token = token
-            user.activated_at = now
-            user.updated_at = now
-
-            # 记录邀请使用
-            use_record = InvitationUse(
-                invitation_id=invitation.id,
-                user_openid=openid,
-                invitation_type="platform",
-                used_at=now,
-            )
-            db.add(use_record)
-
-            invitation.used_count += 1
-            invitation.updated_at = now
-
-            logger.info(f"平台邀请激活用户 - user: {openid}, token: {token}")
-
-            return {
-                "type": "platform",
-                "user": user.to_dict(),
-                "activated_at": now.isoformat(),
-                "message": "账号已激活",
-            }
-
-        # 工作空间邀请处理
+            return _handle_platform_invitation(db, invitation, token, openid, now)
         elif invitation.type == "workspace":
-            # 检查空间成员
-            existing_member = (
-                db.query(WorkspaceMember)
-                .filter(
-                    WorkspaceMember.workspace_id == invitation.workspace_id,
-                    WorkspaceMember.member_openid == openid,
-                    WorkspaceMember.is_deleted == False,
-                )
-                .first()
-            )
-            # existing_member = openid in [user.member_openid for user in workspace_members]
-            if existing_member:
-                workspace_detail = get_workspace_detail(
-                    invitation.workspace_id, invitation.created_by_openid
-                )
-                return {
-                    "type": "workspace",
-                    "workspace_id": invitation.workspace_id,
-                    "workspace_name": workspace_detail["name"],
-                    "role": existing_member.role,
-                    "message": "您已是该空间成员",
-                }
-            # 添加为成员
-            member = WorkspaceMember(
-                workspace_id=invitation.workspace_id,
-                member_openid=openid,
-                role=invitation.role,
-                status="active",
-                granted_at=now,
-            )
-            db.add(member)
-
-            # 自动激活用户
-            user = db.query(User).filter(User.openid == openid).first()
-            if user and user.status == "inactive":
-                user.status = "active"
-                user.activated_at = now
-                user.updated_at = now
-
-            # 记录邀请使用
-            use_record = InvitationUse(
-                invitation_id=invitation.id,
-                user_openid=openid,
-                invitation_type="workspace",
-                used_at=now,
-            )
-            db.add(use_record)
-
-            invitation.used_count += 1
-            invitation.updated_at = now
-
-            workspace_detail = get_workspace_detail(
-                invitation.workspace_id, invitation.created_by_openid
-            )
-
-            logger.info(
-                f"用户通过邀请加入空间 - workspace_id: {invitation.workspace_id}, "
-                f"user: {openid}, role: {invitation.role}"
-            )
-
-            return {
-                "type": "workspace",
-                "workspace_id": invitation.workspace_id,
-                "workspace_name": workspace_detail["name"],
-                "role": invitation.role,
-                "joined_at": now.isoformat(),
-            }
+            return _handle_workspace_invitation(db, invitation, openid, now)
+        else:
+            raise ValueError(f"未知的邀请类型: {invitation.type}")
 
 
 def get_invitations(

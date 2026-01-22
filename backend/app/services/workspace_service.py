@@ -28,10 +28,12 @@ def _get_user_info(openid: str) -> dict:
 
 
 def _get_workspace_members(workspace_id: str) -> list:
-    """获取空间所有成员信息(独立创建session)"""
+    """获取空间所有成员信息"""
     with db_session() as db:
-        members = (
-            db.query(WorkspaceMember)
+        # 一次性查询所有成员和用户信息
+        members_with_users = (
+            db.query(WorkspaceMember, User)
+            .outerjoin(User, WorkspaceMember.member_openid == User.openid)
             .filter(
                 WorkspaceMember.workspace_id == workspace_id,
                 WorkspaceMember.is_deleted == False,
@@ -40,13 +42,12 @@ def _get_workspace_members(workspace_id: str) -> list:
         )
 
         member_list = []
-        for member in members:
-            user_info = _get_user_info(member.member_openid)
+        for member, user in members_with_users:
             member_list.append(
                 {
                     "openid": member.member_openid,
-                    "nickname": user_info["nickname"],
-                    "headimgurl": user_info["headimgurl"],
+                    "nickname": user.nickname if user else None,
+                    "headimgurl": user.headimgurl if user else None,
                     "role": member.role,
                     "granted_at": (
                         member.granted_at.isoformat() if member.granted_at else None
@@ -79,7 +80,7 @@ def create_workspace(openid: str, name: str, description: str = None) -> dict:
 
 def get_user_workspaces(openid: str, status: str = None, role: str = None) -> list:
     """
-    获取用户有权限的所有空间
+    获取用户有权限的所有空间(优化版 - 批量查询)
 
     Args:
         openid: 用户openid
@@ -113,6 +114,7 @@ def get_user_workspaces(openid: str, status: str = None, role: str = None) -> li
         if not workspace_ids:
             return []
 
+        # 构建空间查询
         query = db.query(Workspace).filter(
             Workspace.id.in_(workspace_ids),
             Workspace.is_deleted == False,
@@ -123,6 +125,48 @@ def get_user_workspaces(openid: str, status: str = None, role: str = None) -> li
 
         workspaces = query.all()
 
+        # 1. 批量查询所有空间的创建者信息
+        owner_openids = list(set(ws.owner_openid for ws in workspaces))
+        owners = db.query(User).filter(User.openid.in_(owner_openids)).all()
+        owner_map = {
+            owner.openid: {
+                "openid": owner.openid,
+                "nickname": owner.nickname,
+                "headimgurl": owner.headimgurl,
+            }
+            for owner in owners
+        }
+
+        # 2. 批量查询所有空间的成员信息
+        all_members_with_users = (
+            db.query(WorkspaceMember, User)
+            .outerjoin(User, WorkspaceMember.member_openid == User.openid)
+            .filter(
+                WorkspaceMember.workspace_id.in_(workspace_ids),
+                WorkspaceMember.is_deleted == False,
+            )
+            .all()
+        )
+
+        # 按 workspace_id 组织成员数据
+        members_by_workspace = {}
+        for member, user in all_members_with_users:
+            if member.workspace_id not in members_by_workspace:
+                members_by_workspace[member.workspace_id] = []
+
+            members_by_workspace[member.workspace_id].append(
+                {
+                    "openid": member.member_openid,
+                    "nickname": user.nickname if user else None,
+                    "headimgurl": user.headimgurl if user else None,
+                    "role": member.role,
+                    "granted_at": (
+                        member.granted_at.isoformat() if member.granted_at else None
+                    ),
+                }
+            )
+
+        # 3. 组装结果
         member_map = {m.workspace_id: m.role for m in members}
         result = []
 
@@ -130,13 +174,12 @@ def get_user_workspaces(openid: str, status: str = None, role: str = None) -> li
             ws_dict = ws.to_dict()
             ws_dict["user_role"] = member_map.get(ws.id)
 
-            # 获取创建者信息
-            owner_info = _get_user_info(ws.owner_openid)
-            ws_dict["owner"] = owner_info
-
-            # 获取成员列表
-            members_list = _get_workspace_members(ws.id)
-            ws_dict["members"] = members_list
+            # 从预加载的数据中获取(避免额外查询)
+            ws_dict["owner"] = owner_map.get(
+                ws.owner_openid,
+                {"openid": ws.owner_openid, "nickname": None, "headimgurl": None},
+            )
+            ws_dict["members"] = members_by_workspace.get(ws.id, [])
 
             result.append(ws_dict)
 

@@ -1,0 +1,23 @@
+.bills {
+  width: 1000px;
+  margin: var(--space-20) auto;
+
+  .pageName {
+    font-weight: 500;
+    color: var(--text-2);
+    font-size: 24px;
+    line-height: 32px;
+    margin-bottom: 30px;
+  }
+
+  .table {
+    margin-top: var(--space-30);
+    background-color: var(--background);
+    border-radius: var(--space-8);
+    padding: var(--space-10);
+
+    :global(.ant-table-tbody > tr > td) {
+      background-color: var(--background) !important;
+    }
+  }
+}

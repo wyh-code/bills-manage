@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { message, Drawer, Table } from 'antd';
 import dayjs from "dayjs";
-import { CopyOutlined, ReloadOutlined } from '@ant-design/icons';
+import { CopyOutlined, ReloadOutlined, RightOutlined } from '@ant-design/icons';
 import { invitationApi, InvitationUseRecord } from '@/api/invitation';
+import { accountApi } from '@/api/account';
 import authService from '@/auth/authService';
 import Link from '@/component/Link';
 import Empty from '@/component/Empty';
@@ -11,16 +13,28 @@ import { ROLE_TYPE, INVITATION_TYPE } from '@/utils/const';
 import styles from './index.module.less';
 
 export default function InvitationPanel() {
+  const [accountAmount, setAccountAmount] = useState(0);
   const [invitationToken, setInvitationToken] = useState('');
   const [drawerVisible, setDrawerVisible] = useState(false);
   const [allUsed, setAllUsed] = useState<InvitationUseRecord[]>([]);
   const [loading, setLoading] = useState(false);
   const user = authService.getUser();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchInvitation();
     fetchAllUses();
+    fetAccountAmount();
   }, []);
+
+  const fetAccountAmount = async () => {
+    try {
+      const accountBalance = await accountApi.balance();
+      setAccountAmount(accountBalance.balance)
+    } catch (error) {
+      console.error('账户余额获取失败:', error);
+    }
+  }
 
   const fetchInvitation = async () => {
     try {
@@ -126,10 +140,24 @@ export default function InvitationPanel() {
     <div className={styles.invitationPanel}>
       <div className={styles.userInfo}>
         <img src={user?.headimgurl} alt="avatar" className={styles.avatar} />
-        <div className={styles.username}>{user?.nickname || '用户'}</div>
+        <div className={styles.userRow}>
+          <TextBallonWithEllipse className={styles.username} line={1} text={user?.nickname || '用户'} />
+          <div className={styles.username}>
+          </div>
+          <div className={styles.account}>
+            <div className={styles.accountAmount}>
+              <div className={styles.label}>余额:</div>
+              <div className={styles.amount}>¥{accountAmount.toFixed(2)}</div>
+            </div>
+            <div className={styles.usercenter} onClick={() => navigate('/usercenter')}>
+              <span>个人中心</span>
+              <RightOutlined />
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className={styles.invitationCode}>
+      <div className={styles.infoItem}>
         <div className={styles.label}>邀请码</div>
         <div className={styles.tokenRow}>
           <div className={styles.token}>{invitationToken || '点击刷新获取邀请码'}</div>

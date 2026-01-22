@@ -15,6 +15,7 @@ export interface UploadFileResponse {
 }
 
 export interface FileInfo {
+  remark: string;
   file_id: string;
   original_filename: string;
   file_status: 'processing' | 'completed' | 'failed';

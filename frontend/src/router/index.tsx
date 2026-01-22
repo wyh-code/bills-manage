@@ -1,14 +1,18 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom';
+import Layout from '@/Layout';
 import Login from '@/pages/Login/index';
+import { ProtectedRoute } from '@/auth/ProtectedRoute';
 import VerifyInvitation from '@/pages/VerifyInvitation/index';
 import Forbidden from '@/pages/Forbidden';
 import NotFound from '@/pages/Notfound';
-import { ProtectedRoute } from '@/auth/ProtectedRoute';
-import Layout from '@/Layout';
 import Dashboard from '@/pages/Dashboard';
 import Upload from '@/pages/Upload';
 import Bills from '@/pages/Bills';
 import Summary from '@/pages/Summary';
+import Usercenter from '@/pages/Usercenter';
+import Usage from '@/pages/Usercenter/Usage';
+import Topup from '@/pages/Usercenter/Topup';
+import Transactions from '@/pages/Usercenter/Transactions';
 
 export const router = createBrowserRouter([
   {
@@ -45,6 +49,28 @@ export const router = createBrowserRouter([
           {
             path: 'summary',
             element: <Summary />,
+          },
+          {
+            path: 'usercenter',
+            element: <Usercenter />,
+            children: [
+              {
+                index: true,
+                element: <Navigate to="/usercenter/usage" replace />,
+              },
+              {
+                path: 'usage',
+                element: <Usage />,
+              },
+              {
+                path: 'topup',
+                element: <Topup />,
+              },
+              {
+                path: 'transactions',
+                element: <Transactions />,
+              }
+            ]
           },
           {
             path: '/403',

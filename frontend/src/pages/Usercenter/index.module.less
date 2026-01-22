@@ -1,0 +1,48 @@
+.usercenter {
+  display: flex;
+  height: calc(100vh - 56px);
+  overflow: hidden;
+
+  .aside {
+    width: 240px;
+    height: 100%;
+    padding: var(--space-16) 0px;
+    background: var(--background-2);
+    overflow-y: auto; 
+    flex-shrink: 0;
+    
+    :global {
+      .ant-menu {
+        height: 100%;
+        border-right: none;
+        background: var(--background-2);
+
+        .ant-menu-item {
+          margin: 4px 8px;
+          border-radius: 6px;
+          color: var(--text-1);
+          
+          &:hover {
+            background-color: #ffffffb0;
+          }
+        }
+        
+        .ant-menu-item-selected {
+          background-color: #fff;
+          font-weight: 500;
+          
+          &::after {
+            border-right: 3px solid var(--blue);
+          }
+        }
+      }
+    }
+  }
+
+  .main {
+    flex: 1;
+    height: 100%;
+    overflow-y: auto;
+    background: #fff;
+  }
+}

@@ -1,5 +1,5 @@
 """认证路由"""
-import os
+
 from flask import Blueprint, request, jsonify
 from app.services import auth_service
 from app.config import Config

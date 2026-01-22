@@ -7,24 +7,62 @@
   .userInfo {
     display: flex;
     align-items: center;
-    padding-bottom: var(--space-16);
+    padding: var(--space-10) 0px var(--space-30);
     border-bottom: 1px dashed var(--border-color);
 
     .avatar {
-      width: 40px;
-      height: 40px;
+      width: 50px;
+      height: 50px;
       border-radius: 50%;
     }
 
-    .username {
+    .userRow {
+      flex: 1;
       margin-left: var(--space-10);
-      font-size: 16px;
-      font-weight: 500;
-      color: var(--text-1);
+     
+
+      .username {
+        font-size: 15px;
+        font-weight: 500;
+        color: var(--text-1);
+      }
+
+      .account {
+        font-size: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: var(--space-4);
+
+        .accountAmount {
+          display: flex;
+          align-items: center;
+          color: var(--text-3);
+
+          .label {
+            margin-right: var(--space-8);
+          }
+
+          .amount {
+            color: var(--text-1);
+            font-weight: 500;
+          }
+        }
+
+        .usercenter {
+          cursor: pointer;
+          color: var(--text-3);
+          font-size: 12px;
+
+          span {
+            margin-right: var(--space-4);
+          }
+        }
+      }
     }
   }
 
-  .invitationCode {
+  .infoItem {
     display: flex;
     align-items: center;
     padding: var(--space-10) 0;
@@ -37,6 +75,12 @@
       white-space: nowrap;
       margin-right: var(--space-8);
       width: 50px;
+      flex: none;
+    }
+
+    .amount {
+      color: var(--text-1);
+      font-weight: 500;
     }
 
     .tokenRow {

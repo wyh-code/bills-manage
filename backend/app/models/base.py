@@ -16,8 +16,12 @@ class BaseModel(Base):
     created_at = Column(DateTime, default=datetime.now, nullable=False, comment='创建时间')
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now, comment='更新时间')
 
-    def to_dict(self, exclude=[], **kwargs):
+    def to_dict(self, exclude=None, **kwargs):
         """转换为字典，自动处理日期和数字类型"""
+
+        if exclude is None:
+            exclude = []  # 每次调用创建新列表
+
         result = {}
         mapper = inspect(self.__class__)
         

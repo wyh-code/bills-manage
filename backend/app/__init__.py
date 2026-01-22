@@ -7,7 +7,14 @@ from app.config import Config
 from app.database import init_db
 
 # 导入路由
-from app.routes import auth_bp, workspace_bp, file_bp, bill_bp, invitation_bp
+from app.routes import (
+    auth_bp,
+    workspace_bp,
+    file_bp,
+    bill_bp,
+    invitation_bp,
+    account_bp,
+)
 
 
 def create_app(config_class=Config):
@@ -68,6 +75,7 @@ def create_app(config_class=Config):
     app.register_blueprint(file_bp)
     app.register_blueprint(bill_bp)
     app.register_blueprint(invitation_bp)
+    app.register_blueprint(account_bp)
 
     # ================== 健康检查 ==================
 

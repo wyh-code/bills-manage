@@ -139,3 +139,26 @@ export const getTotalCount = (list) => {
   })
   return Object.entries(totalCount)
 }
+
+
+export const getMonthDaysArray = (dateStr) => {
+  const [year, month] = dateStr.split('-').map(Number);
+  
+  // 获取当月第一天和最后一天的日期对象
+  const firstDate = new Date(year, month - 1, 1); 
+  const lastDate = new Date(year, month, 0); 
+  
+  // 计算当月有多少天
+  const daysInMonth = lastDate.getDate();
+  
+  // 生成包含当月所有日期的数组
+  const daysArray = [];
+  
+  for (let day = 1; day <= daysInMonth; day++) {
+    // 格式化日期为 'YYYY-MM-DD'
+    const formattedDate = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+    daysArray.push(formattedDate);
+  }
+  
+  return daysArray;
+}

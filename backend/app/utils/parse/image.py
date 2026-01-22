@@ -1,22 +1,29 @@
 import os
 import cv2
 import numpy as np
+from threading import Lock
 from paddleocr import PaddleOCR
 from typing import Optional
 from app.utils.logger import get_logger
 
 logger = get_logger(__name__)
 
-# 全局单例
+# 全局单例及线程锁
 _ocr_instance: Optional[PaddleOCR] = None
+_ocr_lock = Lock()
 
 
 def get_ocr_instance() -> PaddleOCR:
-    """获取 PaddleOCR 单例实例"""
+    """获取 PaddleOCR 单例实例(线程安全)"""
     global _ocr_instance
+
     if _ocr_instance is None:
-        _ocr_instance = PaddleOCR(lang="ch")
-        logger.info("PaddleOCR 初始化成功")
+        with _ocr_lock:
+            # 双重检查锁定模式
+            if _ocr_instance is None:
+                _ocr_instance = PaddleOCR(lang="ch")
+                logger.info("PaddleOCR 初始化成功")
+
     return _ocr_instance
 
 

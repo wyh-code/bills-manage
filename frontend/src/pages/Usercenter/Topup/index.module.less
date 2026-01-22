@@ -1,0 +1,86 @@
+.topup {
+  width: 1000px;
+  margin: var(--space-20) auto;
+
+  .pageName {
+    font-weight: 500;
+    color: var(--text-2);
+    font-size: 24px;
+    line-height: 32px;
+    margin-bottom: 30px;
+  }
+
+  .amount {
+    width: 600px;
+    font-size: 14px;
+
+    .label {
+      margin-bottom: var(--space-16);
+      color: var(--text-3);
+    }
+    .value {
+      display: flex;
+      align-items: center;
+
+      .item {
+        padding: var(--space-8) var(--space-16);
+        border-radius: var(--space-8);
+        font-size: var(--text-2);
+        background-color: var(--background-1);
+        margin-right: var(--space-30);
+        font-weight: 500;
+        cursor: pointer;
+      }
+
+      .active {
+        color: #fff;
+        background-color: #000;
+      }
+    }
+
+    .payLabel {
+      margin-top: var(--space-20);
+      margin-bottom: var(--space-16);
+      color: var(--text-3);
+    }
+
+    .pay {
+      .item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border: 2px solid #000;
+        border-radius: var(--space-10);
+        padding: var(--space-8) var(--space-8);
+
+        .alipay {
+          height: 24px;
+        }
+      }
+    }
+    .submit {
+      background: #000; 
+      width: 100%; 
+      border-radius: 10px;
+      margin-top: var(--space-20);
+
+      &:hover {
+        background: var(--blue);
+      }
+    }
+
+    .tip {
+      color: #2c2c2e;
+      font-size: 14px;
+
+      .label {
+        color: #2c2c2e;
+        font-weight: 500;
+        margin: var(--space-20) 0 var(--space-8);
+      }
+      .value {
+        line-height: 1.6;
+      }
+    }
+  }
+}

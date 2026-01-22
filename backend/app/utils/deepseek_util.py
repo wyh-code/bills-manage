@@ -3,7 +3,8 @@
 import json
 from openai import OpenAI
 from app.config import Config
-from app.utils import get_logger
+from .logger import get_logger
+from .deepseek_decorator import track_deepseek_usage
 
 logger = get_logger(__name__)
 
@@ -14,8 +15,11 @@ deepseek_client = OpenAI(
 ROW_FORMAT = "[发卡行,交易日,记账日,交易摘要,人民币金额,卡号末四位,交易地金额,记账币种]"
 
 
-def refine_bill_content(content, original_filename):
-    """使用 DeepSeek 提纯账单信息"""
+@track_deepseek_usage(api_type="refine")
+def refine_bill_content(
+    content, original_filename, user_openid, workspace_id, file_upload_id
+):
+    """使用 DeepSeek 萃纯账单信息"""
     try:
         logger.info(f"开始调用 DeepSeek API 提纯:{original_filename}")
 
@@ -63,19 +67,17 @@ def refine_bill_content(content, original_filename):
         )
 
         refined_content = response.choices[0].message.content
-        usage = response.usage
-        logger.info(
-            f"DeepSeek API 调用成功 - tokens: {usage.total_tokens}, refined_content: {refined_content}"
-        )
+        logger.info(f"DeepSeek API 调用成功 - refined_content: {refined_content}")
 
-        return f"-{refined_content}"
+        return f"-{refined_content}", response
 
     except Exception as e:
         logger.error(f"DeepSeek API 调用失败:{str(e)}")
         return f"[DeepSeek 提纯失败: {str(e)}]\n\n原始内容:\n{content}"
 
 
-def convert_bills_to_json(refined_content):
+@track_deepseek_usage(api_type="convert")
+def convert_bills_to_json(refined_content, user_openid, workspace_id, file_upload_id):
     """将提纯后的账单文本转换为结构化 JSON"""
     try:
         logger.info(f"开始调用 DeepSeek 转换为 JSON,内容长度:{len(refined_content)}")
@@ -123,8 +125,7 @@ def convert_bills_to_json(refined_content):
         )
 
         json_content_str = response.choices[0].message.content.strip()
-        usage = response.usage
-        logger.info(f"DeepSeek JSON 转换成功 - tokens: {usage.total_tokens}")
+        logger.info(f"DeepSeek JSON 转换成功")
 
         # 清理可能的 markdown 标记
         if json_content_str.startswith("```json"):
@@ -137,7 +138,7 @@ def convert_bills_to_json(refined_content):
         json_content_str = json_content_str.strip()
         logger.info(f"清理后的 JSON 字符:{json_content_str}")
         json_content_data = json.loads(json_content_str)
-        return json_content_data.get("bills", [])
+        return json_content_data.get("bills", []), response
 
     except Exception as e:
         logger.error(f"DeepSeek JSON 转换失败:{str(e)}")

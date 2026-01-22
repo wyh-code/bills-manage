@@ -3,7 +3,6 @@ from .decorators import jwt_required
 from .parse import parse_file
 from .logger import get_logger
 from .trace_util import get_trace_id, generate_trace_id
-from .deepseek_util import refine_bill_content, convert_bills_to_json
 from .permission_checker import check_workspace_permission, require_workspace_permission
 from .file_utils import (
     allowed_file,
@@ -28,6 +27,4 @@ __all__ = [
     "parse_file",
     "get_trace_id",
     "generate_trace_id",
-    "refine_bill_content",
-    "convert_bills_to_json",
 ]

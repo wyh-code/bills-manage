@@ -1,0 +1,94 @@
+.usage {
+  width: 1000px;
+  margin: var(--space-20) auto;
+
+  .pageName {
+    font-weight: 500;
+    color: var(--text-2);
+    font-size: 24px;
+    line-height: 32px;
+  }
+
+  .amount {
+    display: flex;
+    margin: var(--space-30) 0px;
+
+    .amountTotal {
+      margin-right: 300px;
+
+
+      .label {
+        color: var(--text-3);
+        font-size: 13px;
+        line-height: 1.6;
+        margin-bottom: var(--space-8);
+      }
+
+      .value {
+        font-size: 28px;
+        line-height: 28px;
+        font-weight: 500;
+
+        .unit {
+          margin-left: 8px;
+          font-size: 18px;
+          line-height: 18px;
+          color: var(--text-3);
+        }
+      }
+    }
+  }
+
+  .used {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 40px;
+    margin-bottom: var(--space-20);
+
+    .name {
+      font-size: 16px;
+      line-height: 16px;
+      font-weight: 500;
+      color: var(--text-2);
+    }
+  }
+
+  .chart {
+    height: 200px;
+  }
+
+  .lineChart {
+
+    .title {
+      color: var(--text-2);
+      margin: var(--space-20) 0px;
+    }
+
+    .lines {
+      display: flex;
+      align-items: center;
+
+
+      .item {
+        width: calc(50% - 15px);
+        height: 200px;
+
+        &:first-child {
+          margin-right: var(--space-30);
+        }
+
+        .name {
+          color: var(--text-2);
+          margin-bottom: var(--space-10);
+
+          span {
+            color: var(--text-3);
+            margin-left: var(--space-20);
+          }
+        }
+      }
+
+    }
+  }
+}

@@ -29,9 +29,11 @@ export default ({ workspaceId, uploadResult, file, handleReset, setDisabledUploa
       console.log('处理完成，账单数量:', bills.length);
       setDisabledUpload(false)
     },
-    onFailed: (file_id) => {
+    onFailed: (file_id, remark) => {
       let msg;
-      if(file_id) {
+      if(remark) {
+        msg = remark
+      } else if(file_id) {
         msg = '提炼账单处理失败，请手动添加账单'
       } else {
         msg = '解析文件失败，请重新上传'

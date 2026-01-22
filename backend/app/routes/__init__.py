@@ -3,5 +3,13 @@ from .workspace import workspace_bp
 from .file import file_bp
 from .bill import bill_bp
 from .invitation import invitation_bp
+from .account import account_bp
 
-__all__ = ['auth_bp', 'workspace_bp', 'file_bp', 'bill_bp', 'invitation_bp']
+__all__ = [
+    "auth_bp",
+    "workspace_bp",
+    "file_bp",
+    "bill_bp",
+    "invitation_bp",
+    "account_bp",
+]
